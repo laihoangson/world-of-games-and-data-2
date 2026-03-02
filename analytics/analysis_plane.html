@@ -130,10 +130,18 @@
             font-size: 1.4em;
         }
 
+        /* === THÊM: Khung bảng nhỏ + scroll (không sửa phần khác) === */
+        .table-wrapper {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #eee;
+            border-radius: 8px;
+        }
+
         .game-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 20px;
+            margin-top: 0;
         }
 
         .game-table th {
@@ -143,6 +151,9 @@
             text-align: center;
             font-weight: bold;
             border: none;
+            position: sticky;
+            top: 0;
+            z-index: 10;
         }
 
         .game-table td {
@@ -201,6 +212,10 @@
             .chart-box {
                 height: 350px;
             }
+            
+            .table-wrapper {
+                max-height: 300px;
+            }
         }
     </style>
 </head>
@@ -251,21 +266,25 @@
 
         <div class="recent-games">
             <h2>Recent Game Sessions</h2>
-            <table class="game-table" id="recentGamesTable">
-                <thead>
-                    <tr>
-                        <th>Score</th>
-                        <th>Coins</th>
-                        <th>UFOs Shot</th>
-                        <th>Bullets Fired</th>
-                        <th>Duration (s)</th>
-                        <th>Death Reason</th>
-                    </tr>
-                </thead>
-                <tbody id="recentGamesBody">
-                    <!-- Recent games will be populated by JavaScript -->
-                </tbody>
-            </table>
+            <!-- === THÊM: Khung nhỏ + scroll (không sửa phần khác) === -->
+            <div class="table-wrapper">
+                <table class="game-table" id="recentGamesTable">
+                    <thead>
+                        <tr>
+                            <th>Score</th>
+                            <th>Coins</th>
+                            <th>UFOs Shot</th>
+                            <th>Bullets Fired</th>
+                            <th>Duration (s)</th>
+                            <th>Death Reason</th>
+                            <th>End Time</th>
+                        </tr>
+                    </thead>
+                    <tbody id="recentGamesBody">
+                        <!-- Recent games will be populated by JavaScript -->
+                    </tbody>
+                </table>
+            </div>
         </div>
 
         <div style="text-align: center; margin-top: 30px;">
@@ -345,7 +364,8 @@
                     bullets: game.bullets_fired || 0,
                     duration: game.game_duration || 0,
                     death_reason: game.death_reason || 'unknown',
-                    pipes_passed: game.pipes_passed || 0
+                    pipes_passed: game.pipes_passed || 0,
+                    date: game.end_time || game.endTime || game.date || 'N/A'
                 };
                 
                 games.push(mappedGame);
@@ -384,7 +404,7 @@
             const avgBullets = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.bullets || 0), 0) / totalGames) : 0;
             
             // Get recent games (last 10)
-            const recentGames = games.slice(-10).reverse();
+            const recentGames = games.slice(-100).reverse();
             
             return {
                 total_games: totalGames,
@@ -844,12 +864,21 @@
         }
 
         function updateRecentGamesTable(recentGames) {
+            // === SỬA: Sort lại theo End Time (mới nhất lên đầu) ===
+            // Đảm bảo thứ tự luôn đúng dù backend trả về gì hoặc fallback CSV
+            recentGames = [...recentGames]; // copy array để không làm thay đổi dữ liệu gốc
+            recentGames.sort((a, b) => {
+                const dateA = new Date(a.date || a.endTime || 0);
+                const dateB = new Date(b.date || b.endTime || 0);
+                return dateB.getTime() - dateA.getTime(); // DESC = mới nhất trước
+            });
+
             const tbody = document.getElementById('recentGamesBody');
             
             if (recentGames.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                        <td colspan="7" style="text-align: center; padding: 40px; color: #7f8c8d;">
                             No game data available
                         </td>
                     </tr>
@@ -865,6 +894,17 @@
                     <td>${game.bullets || 0}</td>
                     <td>${game.duration || 0}</td>
                     <td>${(game.death_reason || 'unknown').replace(/_/g, ' ')}</td>
+                    <!-- === SỬA: Hiển thị múi giờ đầy đủ (AEDT / UTC / v.v.) === -->
+                    <td>${game.date ? new Date(game.date).toLocaleString('en-AU', {
+                        year: 'numeric',
+                        month: 'numeric',
+                        day: 'numeric',
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hour12: true,
+                        timeZoneName: 'short'
+                    }) : 'N/A'}</td>
                 </tr>
             `).join('');
         }
