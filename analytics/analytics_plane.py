@@ -791,4 +791,4 @@ if __name__ == '__main__':
     logger.info("   - /api/generate-dashboard - Generate static HTML dashboard")
     logger.info("   - /                    - View static dashboard")
     logger.info("⚠️  Press Ctrl+C to stop server - data will be preserved")
-    app.run(debug=False, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0')
+    app.run(debug=False, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0') 
