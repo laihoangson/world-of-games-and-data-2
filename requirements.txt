@@ -1,3 +1,5 @@
+setuptools>=68.0
+wheel
 Flask==2.3.3
 pandas==2.0.3
 matplotlib==3.7.2
