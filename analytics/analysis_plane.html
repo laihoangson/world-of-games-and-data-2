@@ -319,7 +319,7 @@
                 const data = parseCSVData(csvText);
                 
                 updateDashboard(data);
-                updateConnectionStatus('csv', '❌ Loaded from CSV file (csv_export/game_sessions.csv). To see the live data, please run analytics_plane.py in analytics/ folder');
+                updateConnectionStatus('csv', '⚠️ Loaded from CSV file (csv_export/game_sessions.csv). The server is temporarily under maintenance, please come back later.');
                 console.log('✅ Loaded data from CSV file');
                 
             } catch (error) {
