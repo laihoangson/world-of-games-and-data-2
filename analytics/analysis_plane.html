@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flappy Plane Analytics</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #333;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+
+        .header h1 {
+            color: #2c3e50;
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: #7f8c8d;
+            font-size: 1.1em;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+        }
+
+        .stat-card h3 {
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }
+
+        .stat-card .value {
+            font-size: 2.5em;
+            font-weight: bold;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .chart-box {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            position: relative;
+        }
+
+        .chart-box h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        .chart-container {
+            height: 300px;
+            position: relative;
+        }
+
+        .scatter-charts {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }
+
+        .recent-games {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+        }
+
+        .recent-games h2 {
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.4em;
+        }
+
+        .game-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .game-table th {
+            background: #34495e;
+            color: white;
+            padding: 15px;
+            text-align: center;
+            font-weight: bold;
+            border: none;
+        }
+
+        .game-table td {
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }
+
+        .game-table tr:nth-child(even) {
+            background: #f8f9fa;
+        }
+
+        .game-table tr:hover {
+            background: #e9ecef;
+        }
+
+        .back-button {
+            display: inline-block;
+            padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            text-decoration: none;
+            border-radius: 25px;
+            font-weight: bold;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .back-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .info-banner {
+            background: #e3f2fd;
+            border-left: 4px solid #2196f3;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-banner.warning {
+            background: #ffecb3;
+            border-left: 4px solid #ffc107;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container, .scatter-charts {
+                grid-template-columns: 1fr;
+            }
+            
+            .stat-card .value {
+                font-size: 2em;
+            }
+            
+            .chart-box {
+                height: 350px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Flappy Plane Analytics</h1>
+            <p>Detailed statistics and performance analysis for the Flappy Plane adventures</p>
+        </div>
+
+        <div id="connectionStatus"></div>
+
+        <div class="stats-grid" id="statsGrid">
+            <!-- Stats will be populated by JavaScript -->
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <h2>Death Reasons Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="deathChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-box">
+                <h2>Score Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="scatter-charts">
+            <div class="chart-box">
+                <h2>Score vs Bullets Fired</h2>
+                <div class="chart-container">
+                    <canvas id="scoreBulletsChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-box">
+                <h2>UFOs Shot vs Coins Collected</h2>
+                <div class="chart-container">
+                    <canvas id="ufoCoinChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="recent-games">
+            <h2>Recent Game Sessions</h2>
+            <table class="game-table" id="recentGamesTable">
+                <thead>
+                    <tr>
+                        <th>Score</th>
+                        <th>Coins</th>
+                        <th>UFOs Shot</th>
+                        <th>Bullets Fired</th>
+                        <th>Duration (s)</th>
+                        <th>Death Reason</th>
+                    </tr>
+                </thead>
+                <tbody id="recentGamesBody">
+                    <!-- Recent games will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <div style="text-align: center; margin-top: 30px;">
+            <a href="../analysis.html" class="back-button">← Back to Analytics Hub</a>
+        </div>
+    </div>
+
+    <script>
+        let deathChart, scoreChart, scoreBulletsChart, ufoCoinChart;
+
+        // Color palette for charts
+        const chartColors = {
+            pipe: '#e74c3c',
+            ufo_collision: '#9b59b6',
+            enemy_bullet: '#3498db',
+            ground: '#f39c12',
+            ceiling: '#1abc9c',
+            unknown: '#95a5a6'
+        };
+
+        // Sửa URL dynamic: Dùng window.location.origin để tự động lấy URL server (Render hoặc local)
+        const API_URL = window.location.origin + '/api/plane-stats';  // Hoặc hardcode 'https://flappy-analytics.onrender.com/api/plane-stats' nếu dashboard riêng
+
+        // THÊM: Function để load từ CSV file (fallback)
+        async function loadFromCSV() {
+            try {
+                const response = await fetch('../csv_export/game_sessions.csv');
+                if (!response.ok) {
+                    throw new Error('CSV file not found');
+                }
+                const csvText = await response.text();
+                const data = parseCSVData(csvText);
+                
+                updateDashboard(data);
+                updateConnectionStatus('csv', '❌ Loaded from CSV file (csv_export/game_sessions.csv). To see the live data, please run the Python server');
+                console.log('✅ Loaded data from CSV file');
+                
+            } catch (error) {
+                console.error('❌ Cannot load from CSV:', error);
+                loadSampleData();
+            }
+        }
+
+        // SỬA: Function để parse CSV data - FIXED COLUMN MAPPING
+        function parseCSVData(csvText) {
+            const lines = csvText.trim().split('\n');
+            const headers = lines[0].split(',').map(h => h.trim());
+            
+            // THÊM: Check required headers
+            const requiredHeaders = ['score', 'coins_collected', 'ufos_shot', 'bullets_fired', 'game_duration', 'death_reason'];
+            if (!requiredHeaders.every(h => headers.includes(h))) {
+                throw new Error('CSV missing required headers');
+            }
+
+            const games = [];
+            const deathReasons = {};
+            const scoreDistribution = {};
+            
+            for (let i = 1; i < lines.length; i++) {
+                const values = lines[i].split(',').map(v => v.trim());
+                const game = {};
+                
+                headers.forEach((header, index) => {
+                    let value = values[index];
+                    // Convert numeric values
+                    if (['score', 'coins_collected', 'ufos_shot', 'bullets_fired', 'game_duration', 'pipes_passed'].includes(header)) {
+                        value = parseInt(value) || 0;
+                    }
+                    game[header] = value;
+                });
+                
+                // Map CSV columns to expected field names
+                const mappedGame = {
+                    score: game.score || 0,
+                    coins: game.coins_collected || 0,
+                    ufos: game.ufos_shot || 0,
+                    bullets: game.bullets_fired || 0,
+                    duration: game.game_duration || 0,
+                    death_reason: game.death_reason || 'unknown',
+                    pipes_passed: game.pipes_passed || 0
+                };
+                
+                games.push(mappedGame);
+                
+                // Count death reasons
+                const rawReason = mappedGame.death_reason;
+                if (rawReason && rawReason !== 'unknown') {
+                    const reason = rawReason;
+                    deathReasons[reason] = (deathReasons[reason] || 0) + 1;
+                }
+                
+                // Create score distribution
+                const score = mappedGame.score || 0;
+                let bucket;
+
+                if (score >= 50) bucket = '50+';
+                else if (score >= 45) bucket = '45-49';
+                else if (score >= 40) bucket = '40-44';
+                else if (score >= 35) bucket = '35-39';
+                else if (score >= 30) bucket = '30-34';
+                else if (score >= 25) bucket = '25-29';
+                else if (score >= 20) bucket = '20-24';
+                else if (score >= 15) bucket = '15-19';
+                else if (score >= 10) bucket = '10-14';
+                else if (score >= 5)  bucket = '5-9';
+                else bucket = '0-4';
+                
+                scoreDistribution[bucket] = (scoreDistribution[bucket] || 0) + 1;
+            }
+            
+            // Calculate statistics
+            const totalGames = games.length;
+            const avgScore = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.score || 0), 0) / totalGames) : 0;
+            const maxScore = totalGames > 0 ? Math.max(...games.map(game => game.score || 0)) : 0;
+            const avgDuration = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.duration || 0), 0) / totalGames) : 0;
+            const avgBullets = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.bullets || 0), 0) / totalGames) : 0;
+            
+            // Get recent games (last 10)
+            const recentGames = games.slice(-10).reverse();
+            
+            return {
+                total_games: totalGames,
+                avg_score: avgScore,
+                max_score: maxScore,
+                avg_duration: avgDuration,
+                avg_bullets: avgBullets,
+                death_reasons: deathReasons,
+                recent_games: recentGames,
+                score_distribution: scoreDistribution,
+                all_games: games
+            };
+        }
+
+        // THÊM: Function để load sample data
+        function loadSampleData() {
+            const sampleData = {
+                total_games: 0,
+                avg_score: 0,
+                max_score: 0,
+                avg_duration: 0,
+                avg_bullets: 0,
+                death_reasons: {},
+                recent_games: [],
+                score_distribution: {},
+                all_games: []
+            };
+            
+            updateDashboard(sampleData);
+            updateConnectionStatus('error', '❌ No data available. Connect to the python server first or ensure CSV file exists!');
+        }
+
+        // THÊM: Function để update connection status
+        function updateConnectionStatus(type, message) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const statusClass = type === 'error' ? 'info-banner warning' : 'info-banner';
+            
+            statusDiv.innerHTML = `
+                <div class="${statusClass}">
+                    <strong>Connection Status:</strong> ${message}
+                </div>
+            `;
+        }
+
+        // Fetch and display analytics data
+        async function loadAnalytics() {
+            try {
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 5000);  // Timeout 5s
+                
+                const response = await fetch(API_URL, { signal: controller.signal });
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+
+                updateDashboard(data);
+                updateConnectionStatus('success', '✅ Connected to live server');
+                console.log('✅ Loaded data from Flask API');
+
+            } catch (error) {
+                console.error('⚠️ Cannot connect to Flask server:', error);
+                updateConnectionStatus('error', '❌ Server offline or unreachable. Trying CSV fallback...');
+                loadFromCSV(); // Fallback to CSV
+            }
+        }
+
+        // SỬA: Function chính để update dashboard
+        function updateDashboard(data) {
+            // Update stats grid
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card">
+                    <h3>Total Games Played</h3>
+                    <div class="value">${data.total_games || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Average Score</h3>
+                    <div class="value">${data.avg_score || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Highest Score</h3>
+                    <div class="value">${data.max_score || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Duration (s)</h3>
+                    <div class="value">${data.avg_duration || 0}</div>
+                </div>
+                <div class="stat-card">
+                    <h3>Avg Bullets Fired</h3>
+                    <div class="value">${data.avg_bullets || 0}</div>
+                </div>
+            `;
+
+            // Create charts
+            createDeathReasonsChart(data.death_reasons || {});
+            createScoreHistogram(data.score_distribution || {});
+            createScatterPlots(data.all_games || []);
+            updateRecentGamesTable(data.recent_games || []);
+        }
+
+ function createDeathReasonsChart(deathReasons) {
+    const ctx = document.getElementById('deathChart').getContext('2d');
+    
+    if (deathChart) {
+        deathChart.destroy();
+    }
+
+    // Remove unknown
+    if (deathReasons['unknown']) {
+        delete deathReasons['unknown'];
+    }
+
+    // Sort entries by count descending
+    const sortedEntries = Object.entries(deathReasons)
+        .sort((a, b) => b[1] - a[1]); // b -> a = descending order
+
+    // If no data left
+    if (sortedEntries.length === 0) {
+        deathChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['No Data'],
+                datasets: [{
+                    data: [1],
+                    backgroundColor: ['#95a5a6'],
+                    borderColor: 'white',
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: { enabled: false }
+                }
+            }
+        });
+        return;
+    }
+
+    // Build sorted labels + data + colors
+    const labels = sortedEntries.map(([reason]) =>
+        reason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+    );
+
+    const data = sortedEntries.map(entry => entry[1]);
+
+    const backgroundColors = sortedEntries.map(([reason]) =>
+        chartColors[reason] || chartColors.unknown
+    );
+
+    // Create sorted doughnut chart
+    deathChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: backgroundColors,
+                borderColor: 'white',
+                borderWidth: 2,
+                hoverOffset: 10
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            rotation: -90 * (Math.PI / 180), // start at top (optional)
+            plugins: {
+                legend: {
+                    position: 'right',
+                    labels: {
+                        padding: 20,
+                        usePointStyle: true,
+                        pointStyle: 'circle'
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            const label = context.label || '';
+                            const value = context.raw || 0;
+                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                            const percentage = Math.round((value / total) * 100);
+                            return `${label}: ${value} (${percentage}%)`;
+                        }
+                    }
+                }
+            },
+            cutout: '60%'
+        }
+    });
+}
+
+
+        function createScoreHistogram(scoreBuckets) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            
+            if (scoreChart) {
+                scoreChart.destroy();
+            }
+
+            // Kiểm tra nếu có dữ liệu
+            if (Object.keys(scoreBuckets).length === 0) {
+                scoreChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: ['No Data'],
+                        datasets: [{
+                            data: [0],
+                            backgroundColor: 'rgba(102, 126, 234, 0.7)'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            y: { beginAtZero: true },
+                            x: { display: false }
+                        }
+                    }
+                });
+                return;
+            }
+
+            // Tách và sắp xếp các buckets một cách thông minh
+            const sortedEntries = Object.entries(scoreBuckets).sort((a, b) => {
+                const getBucketValue = (bucket) => {
+                    if (bucket === '50+') return 999;
+                    if (bucket.includes('-')) {
+                        return parseInt(bucket.split('-')[0]);
+                    }
+                    return parseInt(bucket);
+                };
+                
+                return getBucketValue(a[0]) - getBucketValue(b[0]);
+            });
+
+            const sortedLabels = sortedEntries.map(entry => entry[0]);
+            const sortedData = sortedEntries.map(entry => entry[1]);
+
+            scoreChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sortedLabels,
+                    datasets: [{
+                        label: 'Number of Games',
+                        data: sortedData,
+                        backgroundColor: 'rgba(102, 126, 234, 0.7)',
+                        borderColor: 'rgba(102, 126, 234, 1)',
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        borderSkipped: false,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Games: ${context.raw}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Games'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Score Range'
+                            },
+                            grid: {
+                                display: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function createScatterPlots(games) {
+            // Prepare data for scatter plots
+            const scoreBulletsData = games.map(game => ({
+                x: game.bullets || 0,
+                y: game.score || 0
+            }));
+
+            const ufoCoinData = games.map(game => ({
+                x: game.coins || 0,
+                y: game.ufos || 0
+            }));
+
+            // Score vs Bullets Fired Scatter Plot
+            const scoreBulletsCtx = document.getElementById('scoreBulletsChart').getContext('2d');
+            if (scoreBulletsChart) {
+                scoreBulletsChart.destroy();
+            }
+
+            // UFOs vs Coins Scatter Plot
+            const ufoCoinCtx = document.getElementById('ufoCoinChart').getContext('2d');
+            if (ufoCoinChart) {
+                ufoCoinChart.destroy();
+            }
+
+            // Kiểm tra nếu có dữ liệu
+            if (games.length === 0) {
+                createEmptyScatterChart(scoreBulletsCtx, 'Score vs Bullets Fired');
+                createEmptyScatterChart(ufoCoinCtx, 'UFOs Shot vs Coins Collected');
+                return;
+            }
+
+            scoreBulletsChart = new Chart(scoreBulletsCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Games',
+                        data: scoreBulletsData,
+                        backgroundColor: 'rgba(255, 99, 132, 0.6)',
+                        borderColor: 'rgba(255, 99, 132, 1)',
+                        borderWidth: 1,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Score: ${context.parsed.y}, Bullets: ${context.parsed.x}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Bullets Fired'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Score'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+
+            ufoCoinChart = new Chart(ufoCoinCtx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'Games',
+                        data: ufoCoinData,
+                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1,
+                        pointRadius: 6,
+                        pointHoverRadius: 8
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `UFOs: ${context.parsed.y}, Coins: ${context.parsed.x}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Coins Collected'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'UFOs Shot'
+                            },
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.1)'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // THÊM: Function tạo scatter chart rỗng
+        function createEmptyScatterChart(ctx, title) {
+            new Chart(ctx, {
+                type: 'scatter',
+                data: {
+                    datasets: [{
+                        label: 'No Data',
+                        data: [{x: 0, y: 0}],
+                        backgroundColor: 'rgba(200, 200, 200, 0.1)',
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: title,
+                            font: { size: 16 }
+                        },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateRecentGamesTable(recentGames) {
+            const tbody = document.getElementById('recentGamesBody');
+            
+            if (recentGames.length === 0) {
+                tbody.innerHTML = `
+                    <tr>
+                        <td colspan="6" style="text-align: center; padding: 40px; color: #7f8c8d;">
+                            No game data available
+                        </td>
+                    </tr>
+                `;
+                return;
+            }
+            
+            tbody.innerHTML = recentGames.map(game => `
+                <tr>
+                    <td style="font-weight: bold; color: #2c3e50;">${game.score || 0}</td>
+                    <td>${game.coins || 0}</td>
+                    <td>${game.ufos || 0}</td>
+                    <td>${game.bullets || 0}</td>
+                    <td>${game.duration || 0}</td>
+                    <td>${(game.death_reason || 'unknown').replace(/_/g, ' ')}</td>
+                </tr>
+            `).join('');
+        }
+
+        // Load analytics when page loads
+        document.addEventListener('DOMContentLoaded', loadAnalytics);
+
+        // Clean up charts when page is unloaded
+        window.addEventListener('beforeunload', () => {
+            if (deathChart) deathChart.destroy();
+            if (scoreChart) scoreChart.destroy();
+            if (scoreBulletsChart) scoreBulletsChart.destroy();
+            if (ufoCoinChart) ufoCoinChart.destroy();
+        });
+    </script>
+</body>
+</html>

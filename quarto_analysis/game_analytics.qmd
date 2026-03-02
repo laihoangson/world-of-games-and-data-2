@@ -1,0 +1,1175 @@
+---
+title: "Game Analytics: From Exploratory Data Analysis to Predictive Modeling"
+author: "Hoang Son Lai"
+date: "Nov 17, 2025"
+
+format:
+  html:
+    output-file: game_analytics.html
+    css: "assignment.css"
+    embed-resources: false
+    minify: false
+    code-fold: true
+    toc: true
+    toc-depth: 4
+    fig-width: 6
+    fig-height: 4
+    fig-align: center
+    fig-retina: 4
+
+execute:
+  echo: true
+  message: false
+  warning: false
+  cache: false
+  freeze: false
+---
+
+```{r}
+#| echo: false
+# Load libraries
+library(tidyverse)
+library(conflicted)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(janitor)
+library(knitr)
+library(scales)
+library(naniar)
+library(lubridate)
+library(tidytext)
+library(viridis)
+library(plotly)
+library(patchwork)
+library(purrr)
+library(gt)
+library(DT)
+library(kableExtra)
+library(stringr)
+library(tidyr)
+library(forcats)
+library(caret)
+library(randomForest)
+library(cluster)
+library(factoextra)
+library(corrplot)
+library(ggpubr)
+library(RColorBrewer)
+library(broom)
+library(colorspace)
+library(GGally)
+library(tibble)
+library(highcharter)
+library(htmltools)
+library(jsonlite)
+library(ggrepel)
+library(xgboost)
+library(pROC)
+
+conflicts_prefer(dplyr::filter)
+conflicts_prefer(dplyr::select)
+conflicts_prefer(dplyr::slice)
+conflicts_prefer(plotly::layout)
+conflicts_prefer(ggplot2::margin)
+
+# Set random seed for reproducibility
+set.seed(123)
+```
+
+![](game.jpg)
+
+## Introduction
+
+The modern gaming landscape is fiercely competitive, where player retention and engagement are the ultimate currencies. Success is no longer solely determined by creative design and immersive gameplay but increasingly by the ability to understand and adapt to player behavior. This project, "Game Analytics: From Exploratory Data Analysis to Predictive Modeling," demonstrates this data-driven paradigm by conducting a comprehensive analysis of Flappy Plane Adventure, a dynamic side-scrolling shooter.
+
+Leveraging a rich dataset of 300 game sessions, this study moves beyond traditional descriptive statistics to uncover the deep-seated patterns that govern player success and failure. My journey begins with a thorough Exploratory Data Analysis (EDA), where I visualize performance distributions, identify the most common obstacles, and engineer advanced behavioral features such as aggressiveness, efficiency, and risk-taking to quantify playstyles.
+
+I then tackle the challenge of a limited dataset through bootstrapping, artificially expanding my training data to build more robust and generalizable machine learning models. This foundation allows me to segment the player base into distinct behavioral profiles using unsupervised learning (K-Means Clustering), revealing clear archetypes from hesitant Beginners to seasoned Experts.
+
+The core of this investigation lies in supervised predictive modeling. I develop and compare multiple algorithms to:
+
+- Predict final scores with near-perfect accuracy using a Random Forest regressor.
+
+- Forecast player survival beyond a critical 30-second threshold.
+
+- Anticipate the cause of a player's death through a multiclass classification model.
+
+Ultimately, this report transcends a mere technical exercise. Each model and visualization is meticulously interpreted to generate actionable, evidence-based recommendations for game balancing, targeted player engagement, and strategic monetization. My goal is to provide a clear blueprint for how data science can be practically applied to create a more enjoyable and balanced gaming experience.
+
+## 1. Data Overview & Processing
+
+The data preparation stage begins by loading the raw game session CSV and converting timestamp strings into POSIX datetime objects for `start_time` and `end_time.` Missing or problematic values are handled (for example `game_duration` is set to 0 where missing), and several derived metrics are computed: `score_per_second` (score divided by duration) and `accuracy` (UFOs shot divided by bullets fired). 
+
+```{r}
+# Load and clean the data
+game_data <- read.csv("data/game_sessions.csv", stringsAsFactors = FALSE)
+
+# Data cleaning and preprocessing
+game_data_clean <- game_data %>%
+  mutate(
+    start_time = as.POSIXct(start_time, format = "%Y-%m-%dT%H:%M:%OSZ"),
+    end_time = as.POSIXct(end_time, format = "%Y-%m-%dT%H:%M:%OSZ"),
+    death_reason = as.factor(death_reason),
+    # Handle missing end_time
+    game_duration = ifelse(is.na(game_duration), 0, game_duration),
+    # Create performance metrics
+    score_per_second = ifelse(game_duration > 0, score / game_duration, 0),
+    accuracy = ifelse(bullets_fired > 0, ufos_shot / bullets_fired, 0)
+  ) %>%
+  filter(!is.na(start_time))  
+```
+
+```{r}
+# Display basic information
+cat("Cleaned Dataset Dimensions:", dim(game_data_clean), "\n")
+cat("Date Range:", as.character(min(game_data_clean$start_time)), "to", 
+    as.character(max(game_data_clean$start_time)), "\n")
+```
+
+```{r}
+head(game_data_clean)
+```
+
+```{r}
+#| label: tbl-1-1
+#| tbl-cap: ""
+
+variable_description <- tibble(
+  Variable = c(
+    "id",
+    "start_time",
+    "end_time",
+    "score",
+    "coins_collected",
+    "ufos_shot",
+    "bullets_fired",
+    "death_reason",
+    "game_duration",
+    "pipes_passed",
+    "score_per_second",
+    "accuracy"
+  ),
+  Description = c(
+    "Unique session identifier",
+    "Timestamp when the game session started",
+    "Timestamp when the game session ended",
+    "Final score achieved in the session. Score = coins_collected + (3 × ufos_shot)",
+    "Number of coins collected by the player",
+    "Number of UFO enemies shot",
+    "Total number of bullets fired",
+    "Cause of death (collision type / hazard)",
+    "Total session duration in seconds",
+    "Number of pipes the player successfully passed",
+    "Score normalized by session duration (score ÷ game_duration)",
+    "Shooting accuracy (ufos_shot ÷ bullets_fired)"
+  ),
+  Type = c(
+    "Character",
+    "Datetime",
+    "Datetime",
+    "Integer",
+    "Integer",
+    "Integer",
+    "Integer",
+    "Categorical",
+    "Numeric",
+    "Integer",
+    "Numeric",
+    "Numeric"
+  )
+)
+
+variable_description %>%
+  gt() %>%
+  tab_header(
+    title = md("**Variable Description - Plane Game Analytics**")
+  ) %>%
+  cols_width(
+    Variable ~ px(160),
+    Description ~ px(420),
+    Type ~ px(120)
+  ) %>%
+  tab_style(
+    style = cell_text(weight = "bold"),
+    locations = cells_column_labels()
+  )
+
+```
+
+```{r}
+#| label: tbl-1-2
+#| tbl-cap: "Number of NA values per column in game_data_clean"
+
+# Check NA
+na_table <- game_data_clean %>%
+  summarise(across(everything(), ~ sum(is.na(.)))) %>%
+  pivot_longer(cols = everything(), names_to = "Column", values_to = "NA Count") %>%
+  arrange(desc(`NA Count`))
+
+# Display by kable
+kable(na_table)
+```
+
+```{r}
+#| label: tbl-1-3
+#| tbl-cap: "Summary statistics for key variables"
+
+# Summary statistics
+game_data_clean %>%
+  select(score, game_duration, coins_collected, ufos_shot, bullets_fired, pipes_passed, accuracy) %>%
+  summary() %>%
+  kable()
+```
+
+## 2. Exploratory Data Analysis
+
+Exploratory Data Analysis (EDA) is the process of visually and statistically examining the dataset to uncover patterns. This section delves deep into the player data to understand core behaviors and outcomes. It begins with an overview of the distribution of key performance metrics, then investigates the most common reasons for game failure. Finally, it explores the relationships and correlations between different variables to understand how they influence one another.
+
+### 2.1. Distribution Overview
+
+```{r}
+#| fig-width: 8
+#| fig-height: 7
+#| fig-cap: "Distribution of Game Performance Metrics"
+#| label: fig-2-1-1
+
+# Tidy dataset long & clean variable names
+game_long <- game_data_clean %>%
+  select(score, game_duration, accuracy, coins_collected, ufos_shot) %>%
+  pivot_longer(
+    cols = everything(),
+    names_to = "variable",
+    values_to = "value"
+  ) %>%
+  mutate(
+    variable = str_replace_all(variable, "_", " "),  
+    variable = str_to_title(variable)                 
+  )
+
+# Facet color
+facet_colors <- c(
+  "Score"            = "#4e79a7",
+  "Game Duration"    = "#f28e2b",
+  "Accuracy"         = "#59a14f",
+  "Coins Collected"  = "#e15759",
+  "Ufos Shot"        = "#76b7b2"
+)
+
+# Plot
+ggplot(game_long, aes(x = value, fill = variable)) +
+  geom_histogram(
+    bins = 30,
+    alpha = 0.7,
+    color = "white",
+    linewidth = 0.3
+  ) +
+  scale_fill_manual(values = facet_colors) +
+  facet_wrap(~ variable, scales = "free", ncol = 3) +
+  labs(
+    title = "Distribution of Game Performance Metrics",
+    x = "Value",
+    y = "Count",
+    fill = NULL
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    legend.position    = "none",
+    strip.text         = element_text(face = "bold", size = 9),
+    plot.title         = element_text(face = "bold", size = 14, hjust = 0.5),
+    panel.border       = element_rect(
+      color = "white",
+      fill  = NA,
+      linewidth = 1
+    ),
+    axis.title.x       = element_text(size = 9, margin = margin(t = 5)),
+    axis.title.y       = element_text(size = 9, margin = margin(r = 5)),
+    axis.text.x        = element_text(size = 6),
+    axis.text.y        = element_text(size = 6)
+  )
+```
+
+@fig-2-1-1 shows that the distributions for Score, Game Duration, Coins Collected, and Ufos Shot are all strongly right-skewed. This indicates that the vast majority of game sessions are short and result in low scores, which is a common characteristic of challenging, skill-based games. Most players fail early, while only a few achieve high scores and long playtimes. The Accuracy metric shows a more spread-out distribution but is still concentrated towards the lower values.
+
+```{r}
+#| fig-height: 5
+#| fig-cap: "Common Causes Of Death"
+#| label: fig-2-1-2 
+
+# Bar chart death reason
+death_reason_data <- game_data_clean %>%
+  count(death_reason, sort = TRUE) %>%
+  mutate(
+    death_reason_clean = death_reason %>%
+      str_replace_all("_", " ") %>% 
+      str_to_title()
+  )
+
+highchart() %>%
+  hc_chart(type = "bar") %>%
+  hc_title(text = "Common Causes Of Death") %>%
+  hc_xAxis(
+    categories = death_reason_data$death_reason_clean,
+    title = list(text = "Death Reason"),
+    labels = list(style = list(fontSize = "11px"))
+  ) %>%
+  hc_yAxis(
+    title = list(text = "Number of games"),
+    labels = list(style = list(fontSize = "11px"))
+  ) %>%
+  hc_add_series(
+    name = "Count",
+    data = death_reason_data$n,
+    color = "#1f77b4"
+  ) %>%
+  hc_tooltip(
+    useHTML = TRUE,
+    pointFormat = "<b>Count:</b> {point.y}"    
+  ) %>%
+  hc_plotOptions(
+    series = list(
+      borderWidth = 0,
+      dataLabels = list(enabled = FALSE)
+    )
+  ) %>%
+  hc_legend(enabled = FALSE) %>%              
+  hc_exporting(enabled = TRUE)
+```
+
+@fig-2-1-2 clearly shows that colliding with a "Pipe" is overwhelmingly the most common reason for a game to end. The second most frequent cause is hitting the "Ground".
+
+```{r}
+#| fig-height: 5
+#| label: fig-2-1-3
+#| fig-cap: "Correlation Matrix for Key Performance Metrics"
+
+# Heatmap correlation
+colors <- mako(10)
+stops <- seq(0, 1, length.out = length(colors))
+custom_colorscale <- lapply(seq_along(colors), function(i) {
+  list(stops[i], colors[i])
+})
+
+num_vars <- game_data_clean %>%
+  select(
+    score, game_duration, coins_collected, ufos_shot, 
+    bullets_fired, pipes_passed, accuracy
+  )
+
+cor_matrix <- cor(num_vars, use = "complete.obs")
+
+plot_ly(
+  x = colnames(cor_matrix),
+  y = colnames(cor_matrix),
+  z = cor_matrix,
+  type = "heatmap",
+  colorscale = custom_colorscale,
+  xgap = 2,
+  ygap = 2,
+  showscale = TRUE
+) %>%
+  layout(
+    title = list(text = "Correlation Matrix for Key Performance Metrics", x = 0.5),
+    xaxis = list(title = "", tickangle = 45, tickfont = list(size = 10)),
+    yaxis = list(title = "", autorange = "reversed", tickfont = list(size = 10)),
+    plot_bgcolor = "white",
+    paper_bgcolor = "white",
+    margin = list(l = 80, r = 80, b = 80, t = 80)
+  )
+```
+
+@fig-2-1-3 presents a heatmap illustrating the correlations between key performance metrics. The lighter shades of green indicate a strong positive relationship. As expected, `score` is highly correlated with its core components: `game_duration`, `coins_collected`, `ufos_shot`, and `pipes_passed.` This confirms that the game's internal scoring logic is sound - players who survive longer and engage with game elements successfully achieve higher scores. An equally important insight comes from the `accuracy` variable, which shows dark, weak correlations with nearly all other metrics. This suggests that shooting accuracy is an independent skill that is not strongly tied to how long a player survives or how many points they accumulate through other means.
+
+### 2.2 Death Reason Deep-Dive
+
+```{r}
+#| fig-height: 5
+#| fig-cap: "Survival Timeline by Death Reason"
+#| label: fig-2-2-1
+
+# Survival Timeline by Death Reason
+format_bin <- function(x) {
+  x <- gsub("\\(", "", x)
+  x <- gsub("\\]", "", x)
+  x <- gsub("\\[", "", x)
+  x <- gsub("\\)", "", x)
+  x <- gsub(",", "-", x)
+  x
+}
+
+game_data_binned <- game_data_clean %>%
+  mutate(duration_bin = cut(game_duration,
+                            breaks = seq(0, 140, by = 5),
+                            include.lowest = TRUE)) %>%
+  filter(!is.na(duration_bin)) %>%
+  mutate(duration_label = format_bin(as.character(duration_bin))) %>%
+  count(duration_label, death_reason, name = "count")
+
+duration_levels <- format_bin(as.character(levels(cut(seq(0, 100, by = 5),
+                                                      breaks = seq(0, 140, by = 5),
+                                                      include.lowest = TRUE))))
+game_data_binned$duration_label <- factor(game_data_binned$duration_label,
+                                          levels = duration_levels)
+
+timeline_plot <- ggplot(
+  game_data_binned,
+  aes(
+    x = duration_label,
+    y = count,
+    color = death_reason,
+    group = death_reason,
+    text = paste0(
+      "<b>Death Reason:</b> ", death_reason, "<br>",
+      "<b>Duration:</b> ", duration_label, " sec<br>",
+      "<b>Count:</b> ", count
+    )
+  )
+) +
+  geom_line(size = 0.7) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "Survival Timeline by Death Reason",
+    x = "Game Duration (seconds)",
+    y = "Number of Deaths",
+    color = "Death Reason"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1, margin = margin(t = 5)),
+    axis.text.y = element_text(margin = margin(r = 5))
+  )
+
+ggplotly(timeline_plot, tooltip = "text") %>%
+  layout(
+    title = list(
+      text = "<b>Survival Timeline by Death Reason</b>",  
+      x = 0.5,          
+      xanchor = "center",
+      font = list(size = 17)  
+    ),
+    legend = list(
+      orientation = "h",
+      x = 0.5,
+      xanchor = "center",
+      y = -0.25,
+      yanchor = "top"
+    ),
+    xaxis = list(
+      title_standoff = 20
+    ),
+    yaxis = list(
+      title_standoff = 20
+    ),
+    margin = list(b = 160)  
+  )
+```
+
+@fig-2-2-1 provides a dynamic view of how different death reasons occur over time. The "Ground" and "Pipe" deaths are most frequent in the very early stages of the game (0-10 seconds), indicating these are the first major hurdles for new players. In contrast, deaths from "Enemy Bullet" become more prominent as the game duration increases, suggesting that enemies pose a greater threat to more experienced players who have mastered the basic pipe navigation.
+
+```{r}
+#| fig-height: 5
+#| fig-cap: "Score Distribution by Death Reason"
+#| label: fig-2-2-2
+
+#  Distribution of score by death_reason
+stats <- game_data_clean %>%
+  group_by(death_reason) %>%
+  summarise(
+    count = n(),
+    mean  = mean(score),
+    min   = min(score),
+    q1    = quantile(score, 0.25),
+    median= median(score),
+    q3    = quantile(score, 0.75),
+    max   = max(score)
+  )
+
+df <- left_join(game_data_clean, stats, by = "death_reason")
+
+p <- plot_ly()
+
+unique_reasons <- unique(df$death_reason)
+
+for (dr in unique_reasons) {
+
+  dsub <- df %>% filter(death_reason == dr)
+
+  cd <- as.matrix(dsub[, c("count","mean","min","q1","median","q3","max")])
+
+  p <- add_trace(
+    p,
+    data = dsub,
+    x = ~death_reason,
+    y = ~score,
+    type = "violin",
+    name = dr,
+    box = list(visible = TRUE),
+    meanline = list(visible = TRUE),
+    customdata = cd,
+    hovertemplate = paste(
+      "<b>Death reason:</b> ", dr, "<br>",
+      "<b>Score:</b> %{y}<br><br>",
+      "<b>Count:</b> %{customdata[0]}<br>",
+      "<b>Mean:</b> %{customdata[1]:.2f}<br>",
+      "<b>Min:</b> %{customdata[2]}<br>",
+      "<b>Q1:</b> %{customdata[3]}<br>",
+      "<b>Median:</b> %{customdata[4]}<br>",
+      "<b>Q3:</b> %{customdata[5]}<br>",
+      "<b>Max:</b> %{customdata[6]}<extra></extra>"
+    )
+  )
+}
+
+ p %>% layout(
+  title = "Score Distribution by Death Reason",
+  xaxis = list(title = "Death Reason"),
+  yaxis = list(title = "Score")
+)
+```
+
+@fig-2-2-2 provides a powerful comparison of player performance at the moment of failure, revealing a clear hierarchy of challenges. The distributions show that not all deaths are equal in terms of the skill level they represent:
+
+- Novice Failures: Dying by hitting the ground is associated with the lowest possible scores, with the distribution almost entirely concentrated at zero. This represents an immediate failure to grasp the basic flight mechanic. Similarly, ceiling collisions happen at very low scores.
+
+- Advanced Challenges: In stark contrast, deaths caused by enemy_bullet and ufo_collision are associated with significantly higher median scores. The box plots for these two categories are clearly elevated, indicating that only players who have already survived the initial obstacles and achieved a high score even encounter these threats. Dying to an enemy is a hallmark of a high-performing player pushing the limits of their skill.
+
+- The Universal Obstacle: The distribution for pipe collisions is unique. It has a low median score, confirming it's a frequent cause of failure for less experienced players. However, its long upper tail, extending to the maximum score, shows that even the most expert players are not immune, making pipes the universal challenge that affects players at all skill levels.
+
+```{r}
+#| label: tbl-2-2-1
+#| tbl-cap: "Expected Value of Score per Death Reason"
+
+# Expected Value of Score Lost per Death Type
+ev_loss <- game_data_clean %>%
+    group_by(death_reason) %>%
+    rename(`Death reason` = death_reason) %>%
+    summarise(
+        `Mean score` = mean(score),
+        `Median score` = median(score),
+        `Count of deaths` = n(),
+        .groups = 'drop'
+    ) %>%
+    arrange(desc(`Mean score`))
+
+ev_loss %>% kable()
+```
+
+@tbl-2-2-1 provides a clear statistical summary of the skill level associated with each cause of failure. The data reveals a stark contrast between advanced threats and novice hurdles: deaths from ufo_collision (mean score: 30.3) and enemy_bullet (mean score: 28.3) happen to high-performing players, while failing by hitting the ground (mean score: 0.8, median: 0.0) is the definitive mark of a beginner. Positioned between these, pipe collisions represent the primary mid-game obstacle, being the most frequent cause of death (182 instances) with a moderate mean score of 14.5. 
+
+### 2.3 Behavioral Feature Engineering
+
+To capture nuanced player strategies, I engineered eight behavioural features, including `aggressiveness` (bullets fired per second), `efficiency` (score per second), `risk_taking` (UFOs shot per pipe passed), and various rate-based metrics. These features transform raw action counts into meaningful behavioural patterns that more accurately represent player decision-making.
+
+```{r}
+# Behavioral features created 
+game_data_enhanced <- game_data_clean %>%
+    mutate(
+        aggressiveness = ifelse(game_duration > 0, bullets_fired / game_duration, 0),
+        efficiency = ifelse(game_duration > 0, score / game_duration, 0),
+        risk_taking = ifelse(pipes_passed > 0, ufos_shot / pipes_passed, 0),
+        coin_rate = ifelse(game_duration > 0, coins_collected / game_duration, 0),
+        ufo_rate = ifelse(game_duration > 0, ufos_shot / game_duration, 0),
+        pipe_pass_rate = ifelse(game_duration > 0, pipes_passed / game_duration, 0),
+        complexity = bullets_fired + ufos_shot + pipes_passed,
+        skill_tier = cut(score, 
+                        breaks = c(-1, 4, 9, 14, 29, 49, Inf),
+                        labels = c("0-4", "5-9", "10-14", "15-29", "30-49", "50+"))
+    )
+```
+
+```{r}
+#| fig-height: 6
+#| fig-width: 8
+#| fig-cap: "Behavioral Features Correlation Matrix"
+#| label: fig-2-3-1
+
+# Behavioral features
+behavioral_vars <- game_data_enhanced %>%
+  dplyr::select(
+    aggressiveness, efficiency, accuracy, risk_taking,
+    coin_rate, ufo_rate, pipe_pass_rate, complexity
+  )
+
+# Correlation matrix
+behavioral_cor <- cor(behavioral_vars, use = "complete.obs")
+
+# Corrplot
+corrplot(
+  behavioral_cor,
+  method = "color",
+  col = colorRampPalette(c("red", "white", "blue"))(200),
+  type = "full",
+  addCoef.col = "black",
+  tl.col = "black",
+  tl.srt = 45,
+  number.cex = 0.7,
+  mar = c(0,0,3,0),
+  title = "Behavioral Features Correlation Matrix"
+)
+```
+
+@fig-2-3-1 provides a detailed look at how different player strategies relate to one another. The values and colors (deep blue for strong positive correlation, white for no correlation, red for negative correlation) reveal the core mechanics of successful play:
+
+- The "Winning" Strategy is High-Risk, High-Reward: The strongest correlations exist between `efficiency`, `risk_taking`, and `ufo_rate` (correlation values of 0.89 to 0.97). This is a critical insight: players who are the most efficient (highest `score_per_second`) are precisely those who take risks to engage UFOs. The game heavily rewards an active, combat-oriented playstyle over a passive, purely survival-focused one.
+
+- Aggressiveness is Independent of Accuracy: There is virtually no correlation (0.03) between `aggressiveness` (how often a player fires) and `accuracy`. This finding debunks the common assumption that firing more rapidly ("spraying") would lead to lower accuracy. It suggests that skilled players can maintain their accuracy even at a high rate of fire, and unskilled players are inaccurate regardless of how often they shoot. The two are independent skills.
+
+- Negligible Strategic Trade-offs: The only negative correlation on the chart is between `coin_rate` and `aggressiveness` (-0.08), which is extremely weak. This indicates there is no significant trade-off between focusing on shooting and focusing on collecting coins; skilled players appear to do both effectively.
+
+Overall, this matrix clearly demonstrates that success in the game is not just about survival, but about efficient, risk-taking engagement with enemies.
+
+### 2.4. Session Progression Analysis
+
+This section analyzes the dynamics within a game session, focusing on how performance metrics evolve over time and in relation to each other. Instead of just looking at final outcomes, these plots examine the journey. The goal is to understand the relationship between survival time and score accumulation, as well as the efficiency of player actions like shooting.
+ 
+```{r}
+#| fig-height: 5
+#| fig-cap: "Score vs Game Duration with Trendline"
+#| label: fig-2-4-1
+
+# (A) Score vs Duration with trendline
+score_duration_plot <- ggplot(game_data_enhanced, 
+                            aes(x = game_duration, y = score)) +
+    geom_point(alpha = 0.6, color = "#1f77b4") +
+    geom_smooth(method = "loess", color = "#ff7f0e", se = TRUE) +
+    labs(title = "Score vs Game Duration with Trendline",
+         x = "Game Duration (seconds)",
+         y = "Score") +
+    theme_minimal()
+
+ggplotly(score_duration_plot)
+```
+
+```{r}
+#| fig-height: 5
+#| fig-cap: "Bullets Fired vs UFOs Shot"
+#| label: fig-2-4-2
+
+# (B) Bullets vs UFO Shot 
+efficiency_plot <- ggplot(game_data_enhanced,
+                         aes(x = bullets_fired, y = ufos_shot, color = skill_tier)) +
+    geom_point(alpha = 0.7) +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(title = "Bullets Fired vs UFOs Shot",
+         x = "Bullets Fired", 
+         y = "UFOs Shot",
+         color = "Skill Tier (by Score)") +
+    theme_minimal()
+
+ggplotly(efficiency_plot)
+```
+
+@fig-2-4-1 reveals a strong, positive, and non-linear relationship between how long a player survives (`game_duration`) and their final score. The upward curve of the trendline indicates an accelerating return: the longer a player survives, the more rapidly their score increases per second. This suggests that skilled players who survive longer are not just accumulating points over more time, but are also becoming more effective at scoring as they encounter more opportunities (UFOs, coins). Furthermore, the widening "cone" shape of the data points and the broadening confidence interval show that while survival is a necessary condition for a high score, there is a much greater variance in scoring ability among long-lasting players
+
+@fig-2-4-2 provides a powerful visualization of shooting efficiency, segmented by Skill Tier. The key insight lies in the slope of the trendlines for each player group:
+
+- High-Skill Tiers (e.g., Pink: 50+ Score): The trendline for the most skilled players is extremely steep. This demonstrates a very high efficiency: a small increase in bullets fired results in a large increase in UFOs shot.
+
+- Low-Skill Tiers (e.g., Red: 0-4 Score): The trendlines for the least skilled players are nearly flat. They may fire a moderate number of bullets, but they achieve almost no successful hits. This visually separates raw activity (firing bullets) from effective outcomes (hitting targets).
+In essence, the chart proves that simply being aggressive is not enough; success is defined by the efficiency of that aggression, a trait clearly demonstrated by the higher skill tiers.
+
+### 2.5 Clusterable Structure Check
+
+Before attempting to segment the player base, it's essential to determine if the data contains meaningful, inherent structures. This section uses Principal Component Analysis (PCA), a powerful dimensionality reduction technique, to achieve this. PCA condenses multiple behavioral and performance variables into two principal components (PC1 and PC2) that capture the majority of the data's variance. By plotting these components, we can visually inspect the data for natural groupings, which validates the use of a clustering algorithm like K-Means in the next section.
+
+```{r}
+#| fig-width: 8
+#| fig-height: 5
+#| fig-cap: "PCA Loadings - Meaning of Principal Components"
+#| label: fig-2-5-2
+
+cluster_data <- game_data_enhanced %>%
+    select(score, game_duration, coins_collected, bullets_fired,
+           ufos_shot, pipes_passed, aggressiveness, efficiency,
+           accuracy, risk_taking) %>%
+    scale()
+
+pca_result <- prcomp(cluster_data, scale. = TRUE)
+
+# PCA Loadings - Meaning of Principal components
+pca_loadings <- as.data.frame(pca_result$rotation[, 1:2])
+pca_loadings$feature <- rownames(pca_loadings)
+
+loadings_plot <- ggplot(pca_loadings, aes(x = PC1, y = PC2, label = feature)) +
+    geom_point(size = 3, color = "blue") +
+    geom_text_repel(size = 4, max.overlaps = 10) +
+    geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
+    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
+    labs(title = "PCA Loadings - Meaning of Principal Components",
+         x = paste0("PC1 (", round(100 * pca_result$sdev[1]^2/sum(pca_result$sdev^2), 1), "%)"),
+         y = paste0("PC2 (", round(100 * pca_result$sdev[2]^2/sum(pca_result$sdev^2), 1), "%)")) +
+    theme_minimal()
+
+loadings_plot
+```
+
+@fig-2-5-2 is essential for interpreting the PCA results, as it explains the meaning behind the two principal components that summarize 87.3% of the player behavior variance. Each point represents an original variable, and its position reveals its contribution to PC1 and PC2.
+
+PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes - `score`, `game_duration`, `pipes_passed`, `coins_collected`, `ufos_shot`, and `bullets_fired` - have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
+
+PC2 - "Playstyle: Passive Survival vs. Active Combat" (26.5%): This is where the crucial correction lies.
+
+- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: `game_duration`, `coins_collected`, and `pipes_passed.` These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
+
+- The variables with negative loadings (pointing downwards) are the key behavioral ratios: `aggressiveness`, `risk_taking`, `efficiency`, and, critically, `accuracy.` These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
+
+```{r}
+#| fig-height: 5
+#| fig-cap: "PCA - Player Behavior Patterns by Death Reason"
+#| label: fig-2-5-1
+
+# PCA Analysis
+
+
+pca_df <- as.data.frame(pca_result$x)
+pca_df$death_reason <- game_data_enhanced$death_reason
+pca_df$score <- game_data_enhanced$score
+pca_df$game_duration <- game_data_enhanced$game_duration
+pca_df$accuracy <- round(game_data_enhanced$accuracy, 3)
+pca_df$coins_collected <- game_data_enhanced$coins_collected
+pca_df$ufos_shot <- game_data_enhanced$ufos_shot
+pca_df$pipes_passed <- game_data_enhanced$pipes_passed
+
+pca_df$tooltip <- paste(
+    "Death reason:", pca_df$death_reason, "<br>",
+    "Score:", pca_df$score, "<br>",
+    "Duration:", pca_df$game_duration, "s<br>",
+    "Accuracy:", pca_df$accuracy, "<br>",
+    "Coins:", pca_df$coins_collected, "<br>",
+    "UFOs:", pca_df$ufos_shot, "<br>",
+    "Pipes:", pca_df$pipes_passed
+)
+
+pca_plot <- plot_ly(pca_df, x = ~PC1, y = ~PC2, 
+                   color = ~death_reason,
+                   type = 'scatter', mode = 'markers',
+                   text = ~tooltip,
+                   hoverinfo = 'text',
+                   marker = list(size = 8, opacity = 0.7)) %>%
+    layout(title = "PCA - Player Behavior Patterns by Death Reason",
+           xaxis = list(title = paste0("PC1 (", 
+                                     round(100 * pca_result$sdev[1]^2/sum(pca_result$sdev^2), 1), "%)")),
+           yaxis = list(title = paste0("PC2 (", 
+                                     round(100 * pca_result$sdev[2]^2/sum(pca_result$sdev^2), 1), "%)")))
+
+pca_plot
+```
+
+@fig-2-5-1 visualises the game sessions on a 2D map defined by player skill and playstyle. With the context from the PCA Loadings, the distribution of each death_reason tells a compelling story about the player journey:
+
+The Novice Zone (Far Left):
+
+- ground (dark blue): Tightly clustered in the upper-left quadrant. This represents players with very low skill (low PC1) who adopt a Passive Survival playstyle (high PC2) but fail by not acting enough, letting the plane fall.
+
+- ceiling (light blue/teal): Tightly clustered in the lower-left quadrant. This represents players with very low skill (low PC1) who adopt an Active Combat or overly-aggressive playstyle (low PC2) and fail by acting too much, crashing into the ceiling. These two groups represent the two classic types of beginner mistakes: inaction vs. overreaction.
+
+The Intermediate Challenge (Center):
+
+- pipe (pink): These points are spread throughout the center of the plot. This visually confirms that pipe collisions are the universal challenge that players must overcome to transition from novice to skilled. They affect players of all playstyles.
+
+The Advanced Zone (Far Right):
+
+- ufo_collision (light green) and enemy_bullet (orange): These points dominate the right side of the plot, representing the most skilled and highest-progressing players. Crucially, they are almost entirely in the lower-right quadrant. This signifies that the most successful players are those who employ a highly effective Active Combat strategy. Dying by an enemy bullet or a ufo collision is, paradoxically, a sign of a high-skill player who has survived long enough to face the game's most difficult threats.
+
+## 3. Bootstrapping Data for Machine Learning
+
+Because the dataset contains only 300 game sessions, the amount of real training data is insufficient for fitting more complex models without risking overfitting. To address this limitation, I apply a controlled bootstrapping procedure designed to expand the training set while preserving the statistical structure of real player behavior. First, the dataset is chronologically ordered by `start_time` to avoid any leakage from future sessions into the training process. The earliest 250 sessions are used as the base training set, while the most recent 50 sessions are held out as an untouched test set for final, unbiased evaluation.
+
+From the 250-session training base, I generate a bootstrapped dataset by sampling with replacement at the session level to maintain the integrity of each gameplay sequence. This produces 10,000 synthetic sessions that follow the same empirical distributions as the original data while introducing variability through resampling. Importantly, no information from the 50-session holdout set is included in this process, ensuring a clean separation between training and evaluation. The resulting bootstrapped dataset provides a larger and more stable foundation for training machine learning models, improving generalization without altering the underlying behavioral patterns present in the real data.
+
+```{r}
+# Sort by time and split data
+game_sorted <- game_data_enhanced %>% arrange(start_time)
+train_base <- head(game_sorted, 250)
+test_holdout <- tail(game_sorted, 50)
+
+# Bootstrap training data
+set.seed(123)
+bootstrap_size <- 10000
+train_bootstrapped <- train_base %>% 
+    slice_sample(n = bootstrap_size, replace = TRUE) %>% 
+    mutate(is_synthetic = TRUE)
+
+cat("Original Train Size:", nrow(train_base), "\n")
+cat("Bootstrapped Train Size:", nrow(train_bootstrapped), "\n")
+cat("Holdout Test Size:", nrow(test_holdout), "\n")
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+#| fig-cap: "Score Distribution: Real vs Bootstrapped Data"
+#| label: fig-3
+
+# Compare distribution real vs bootstrapped
+compare_plot <- ggplot() +
+    geom_density(data = train_base, aes(x = score, color = "Real"), size = 1) +
+    geom_density(data = train_bootstrapped, aes(x = score, color = "Bootstrapped"), size = 1, alpha = 0.7) +
+    labs(title = "Score Distribution: Real vs Bootstrapped Data",
+         x = "Score", y = "Density", color = "Data Type") +
+    theme_minimal()
+
+compare_plot
+```
+
+This density plot is a critical validation step. It overlays the distribution of the score variable from the original training data ("Real") with the distribution from the new synthetic data ("Bootstrapped"). The two curves align almost perfectly, which confirms that the bootstrapping process was successful. The synthetic data accurately mirrors the statistical characteristics of the original data, making it a reliable and larger dataset for model training.
+
+## 4. Segmentation (Unsupervised Learning)
+
+This section uses unsupervised learning to discover natural groupings or "personas" among the players based on their in-game behavior, without any predefined labels. By applying the K-Means clustering algorithm to key behavioral and performance metrics, the goal is to segment the player base into a few distinct clusters. Analyzing the characteristics of each cluster can reveal different types of playstyles and skill levels.
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+#| fig-cap: "Enhanced Player Segmentation (K-Means)"
+#| label: fig-4
+
+# Features for clustering
+cluster_features_enhanced <- train_bootstrapped %>% 
+    select(score, game_duration, coins_collected, bullets_fired,
+           ufos_shot, pipes_passed, aggressiveness, efficiency,
+           accuracy, risk_taking)
+
+scaled_features_enhanced <- scale(cluster_features_enhanced)
+
+# KMeans clustering with 3 clusters
+set.seed(123)
+kmeans_enhanced <- kmeans(scaled_features_enhanced, centers = 3, nstart = 25)
+train_bootstrapped$cluster_enhanced <- as.factor(kmeans_enhanced$cluster)
+
+# Visualize clusters
+fviz_cluster(kmeans_enhanced, data = scaled_features_enhanced,
+            geom = "point", ellipse.type = "convex",
+            ggtheme = theme_minimal(),
+            main = "Enhanced Player Segmentation (K-Means)")
+```
+
+@fig-4 visualizes the results of the K-Means clustering. Each point represents a game session, and its color corresponds to the cluster it was assigned to. The data is plotted on the first two principal components (Dim1 and Dim2), which capture the most variance in the data. The clear separation between the three colored groups (red, green, and blue) indicates that the algorithm successfully identified three distinct patterns of player behavior.
+
+```{r}
+#| label: tbl-4
+#| tbl-cap: "Cluster profiles"
+
+# Cluster profiles
+cluster_profiles <- train_bootstrapped %>%
+    group_by(cluster_enhanced) %>%
+    rename(`Cluster enhanced` = cluster_enhanced) %>%
+    summarise(
+        Count = n(),
+        `Avg Score` = mean(score),
+        `Avg Duration` = mean(game_duration),
+        `Avg Coins` = mean(coins_collected),
+        `Avg UFOs` = mean(ufos_shot),
+        `Avg Bullets` = mean(bullets_fired),
+        `Avg Aggressiveness` = mean(aggressiveness),
+        `Avg Efficiency` = mean(efficiency),
+        `Avg Accuracy` = mean(accuracy),
+        .groups = 'drop'
+    )
+
+cluster_profiles %>% kable()
+```
+
+@tbl-4 provides a quantitative summary of the three identified clusters, showing the average value of key metrics for each group. This is where the player personas become clear:
+
+- Cluster 1 (956 samples): The "Experts". This group has a very high average score (52.5), a long game duration (37s), and high numbers for coins, UFOs shot, and bullets fired. They are highly skilled and engaged players.
+
+- Cluster 2 (3061 samples): The "Novices". This group has an extremely low average score (0.4) and a very short game duration (1.4s). These are likely new players who fail almost immediately and are at the highest risk of churning.
+
+- Cluster 3 (5983 samples): The "Average Players". This group sits between the other two, with a moderate average score (10.8) and game duration (7.5s). They represent the bulk of the player base who have passed the initial learning curve but have not yet reached expert level.
+
+## 5. Predictive Modeling (Supervised Learning)
+
+Leveraging the insights and the enhanced dataset, this section focuses on building predictive models using supervised learning. The objective is to tackle three distinct business problems: predicting a player's final score (Score Regression), predicting whether a player will survive longer than a 30-second threshold (Survival Prediction), and predicting the specific cause of death (Multiclass Classification). Advanced algorithms like Random Forest and XGBoost are trained on the bootstrapped data and evaluated on the holdout test set.
+
+### 5.1 Score Regression
+
+I implemented a Random Forest regressor using both raw and behavioral features to predict player scores. The model was trained on bootstrapped data and evaluated on a holdout test set using RMSE and R-squared metrics to assess prediction accuracy.
+
+```{r}
+# Define features
+features_enhanced <- c("coins_collected", "ufos_shot", "bullets_fired", 
+                      "game_duration", "pipes_passed", "aggressiveness",
+                      "efficiency", "accuracy", "risk_taking")
+
+# Random Forest with enhanced features
+rf_enhanced <- randomForest(
+    as.formula(paste("score ~", paste(features_enhanced, collapse = "+"))),
+    data = train_bootstrapped,
+    ntree = 100,
+    importance = TRUE
+)
+
+# Predict and assess
+predictions_rf_enhanced <- predict(rf_enhanced, newdata = test_holdout)
+rmse_enhanced <- RMSE(predictions_rf_enhanced, test_holdout$score)
+r2_enhanced <- R2(predictions_rf_enhanced, test_holdout$score)
+
+cat("Enhanced Random Forest Performance:\n")
+cat("RMSE:", round(rmse_enhanced, 2), "\n")
+cat("R-Squared:", round(r2_enhanced, 4), "\n")
+```
+
+RMSE: 0.84 and R-Squared: 0.9961: These are performance metrics for the Random Forest model predicting the final score. The RMSE (Root Mean Squared Error) of 0.84 indicates that, on average, the model's score predictions are off by only 0.84 points, which is very low. The R-Squared value of 0.9961 is extremely high, signifying that the model can explain 99.61% of the variability in the score, making it an exceptionally accurate predictor.
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+#| fig-cap: "Enhanced Feature Importance for Score Prediction"
+#| label: fig-5-1
+
+# Variable importance
+varImpPlot(rf_enhanced, main = "Enhanced Feature Importance for Score Prediction")
+```
+
+@fig-5-1 reveals which variables were most influential for the Random Forest model's predictions, using two distinct metrics: %IncMSE (increase in model error if the feature is removed) and IncNodePurity (contribution to decision-making). Both metrics are in strong agreement, identifying a clear hierarchy of importance. 
+
+The most critical features are `ufos_shot` and `coins_collected`, which is logical as these are the two direct inputs to the final score calculation. The model correctly learned that the number of high-value UFOs shot is the single best predictor of a player's score (shooting a single UFO adds +3 to the score, while collecting a coin add +1). Following that, `pipes_passed` is ranked as the next most important predictor. It does not contribute points directly but serve as powerful proxies for opportunity. A player who navigates more pipes inherently has more time and space to accumulate points by collecting coins and shooting UFOs.
+
+### 5.2 Survival Prediction
+
+I built binary classification models (Random Forest and XGBoost) to predict whether players would survive beyond the 30-second expert threshold. The models utilized both action counts and behavioral rates to identify patterns associated with longer survival.
+
+```{r}
+threshold <- 30
+train_bootstrapped <- train_bootstrapped %>%  
+    mutate(survived_expert = as.factor(ifelse(game_duration > threshold, 1, 0)))
+
+test_holdout <- test_holdout %>%  
+    mutate(survived_expert = as.factor(ifelse(game_duration > threshold, 1, 0)))
+```
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+#| fig-cap: "Random Forest - Survival Prediction Feature Importance"
+#| label: fig-5-2-1
+
+# Random Forest for Survival Prediction
+rf_survival_model <- randomForest(
+    survived_expert ~ bullets_fired + ufos_shot + coins_collected + 
+                     aggressiveness + efficiency + accuracy + pipe_pass_rate,
+    data = train_bootstrapped,
+    ntree = 200,
+    mtry = 3,
+    importance = TRUE
+)
+
+# Predictions
+rf_predictions <- predict(rf_survival_model, newdata = test_holdout)
+rf_probabilities <- predict(rf_survival_model, newdata = test_holdout, type = "prob")[,2]
+
+# Evaluation
+rf_conf_matrix <- confusionMatrix(rf_predictions, test_holdout$survived_expert)
+cat("Random Forest Accuracy:", round(rf_conf_matrix$overall['Accuracy'], 4), "\n")
+
+# Feature Importance
+varImpPlot(rf_survival_model, main = "Random Forest - Survival Prediction Feature Importance")
+```
+
+
+```{r}
+#| fig-width: 7
+#| fig-height: 5
+#| fig-cap: "XGBoost Feature Importance"
+#| label: fig-5-2-2
+
+# XGBoost for Survival Prediction
+# Prepare data for XGBoost
+xgb_features <- c("bullets_fired", "ufos_shot", "coins_collected", 
+                  "aggressiveness", "efficiency", "accuracy", "pipe_pass_rate")
+
+xgb_train <- as.matrix(train_bootstrapped[xgb_features])
+xgb_test <- as.matrix(test_holdout[xgb_features])
+xgb_labels_train <- as.numeric(as.character(train_bootstrapped$survived_expert))
+xgb_labels_test <- as.numeric(as.character(test_holdout$survived_expert))
+
+# XGBoost model
+xgb_model <- xgboost(
+    data = xgb_train,
+    label = xgb_labels_train,
+    nrounds = 100,
+    objective = "binary:logistic",
+    eval_metric = "logloss",
+    max_depth = 6,
+    eta = 0.1,
+    verbose = 0
+)
+
+# Predictions
+xgb_probabilities <- predict(xgb_model, xgb_test)
+xgb_predictions <- ifelse(xgb_probabilities > 0.5, 1, 0)
+
+# Evaluation
+xgb_conf_matrix <- confusionMatrix(as.factor(xgb_predictions), as.factor(xgb_labels_test))
+cat("XGBoost Accuracy:", round(xgb_conf_matrix$overall['Accuracy'], 4), "\n")
+
+# Feature Importance
+xgb_importance <- xgb.importance(feature_names = xgb_features, model = xgb_model)
+xgb.plot.importance(xgb_importance, main = "XGBoost Feature Importance")
+```
+
+Random Forest Accuracy: 0.98 and XGBoost Accuracy: 0.96: These metrics show the accuracy of two different models in predicting whether a player's game duration would exceed 30 seconds. The Random Forest model achieved 98% accuracy, while the XGBoost model achieved 96% accuracy. Both models are highly effective at identifying players who will likely survive for a significant amount of time.
+
+The feature importance plots from both the Random Forest and XGBoost models provide a consistent and powerful narrative about what behaviors define a successful, long-surviving player. @fig-5-2-1 and @fig-5-2-2 both unequivocally identify `coins_collected` as the single most dominant predictor of survival. This insight goes deeper than the score value of coins; a high count of collected coins serves as a strong proxy for skilful navigation. To collect coins, a player must successfully and consistently manoeuvre through the dangerous pipe gaps, demonstrating mastery over the game's core challenge. 
+
+Beyond simple navigation, both models highlight the significance of proactive engagement. `aggressiveness` and `bullets_fired` consistently rank as the next most important features. This indicates that players who are actively participating in the game by shooting are statistically far more likely to survive longer than passive players who only focus on dodging. The models have learned that an active, offensive posture is a key attribute of a competent player. In essence, the ability to survive is not just about avoiding obstacles, but about having the skill to actively engage with the game's systems while doing so.
+
+### 5.3 Death Reason Prediction (Multiclass Classification)
+
+Next, I developed a multiclass XGBoost classifier to predict the specific reason for player deaths based on their in-game behavior and performance metrics. The model was evaluated using overall accuracy and per-class performance metrics.
+
+```{r}
+# DEATH REASON PREDICTION 
+
+# 1. Data Preparation
+death_features <- c("score", "game_duration", "coins_collected", "ufos_shot", 
+                   "bullets_fired", "pipes_passed", "aggressiveness", "accuracy")
+
+train_data <- train_bootstrapped %>%
+  filter(!is.na(death_reason)) %>%
+  select(all_of(death_features), death_reason)
+
+test_data <- test_holdout %>%
+  filter(!is.na(death_reason)) %>%
+  select(all_of(death_features), death_reason)
+
+# 2. Train XGBoost Model
+x_train <- as.matrix(train_data[death_features])
+y_train <- as.integer(train_data$death_reason) - 1
+x_test <- as.matrix(test_data[death_features])
+y_test <- as.integer(test_data$death_reason) - 1
+
+num_classes <- length(unique(y_train))
+
+xgb_model <- xgboost(
+  data = x_train,
+  label = y_train,
+  nrounds = 100,
+  objective = "multi:softprob",
+  num_class = num_classes,
+  eval_metric = "mlogloss",
+  max_depth = 6,
+  eta = 0.1,
+  verbose = 0
+)
+
+# 3. Predictions & Evaluation
+predictions_prob <- predict(xgb_model, x_test, reshape = TRUE)
+predicted_classes <- apply(predictions_prob, 1, which.max) - 1
+
+accuracy <- mean(predicted_classes == y_test)
+cat("Death Reason Prediction Accuracy:", round(accuracy, 4), "\n")
+
+# 4. Detailed Analysis
+class_names <- levels(train_data$death_reason)
+predicted_factor <- factor(predicted_classes, levels = 0:(num_classes-1), labels = class_names)
+actual_factor <- factor(y_test, levels = 0:(num_classes-1), labels = class_names)
+
+conf_matrix <- confusionMatrix(predicted_factor, actual_factor)
+print(conf_matrix)
+
+# 5. Feature Importance & Insights
+importance <- xgb.importance(feature_names = death_features, model = xgb_model)
+print("Top Predictors:")
+print(importance)
+
+# Per-class accuracy
+class_acc <- diag(conf_matrix$table) / colSums(conf_matrix$table)
+cat("\nPer-Class Accuracy:\n")
+print(round(class_acc, 3))
+```
+
+**Death Reason Prediction Accuracy: 0.6:** The model achieved an overall accuracy of 60% on the holdout test set. While this demonstrates predictive capability superior to random guessing, the result must be interpreted with caution due to significant class imbalance. The dataset is heavily skewed toward "pipe" deaths (182 instances) compared to rare events like "ufo_collision" (3 instances). Consequently, the 60% accuracy metric is largely driven by the model’s ability to predict the majority class, rather than a balanced performance across all failure types. This establishes a moderate baseline but indicates that further refinement is necessary.
+
+**Confusion Matrix and Statistics:** The confusion matrix explicitly highlights the challenges posed by the imbalanced dataset. The model performs reliably on frequent failure modes, achieving 84.0% accuracy for "pipe" deaths and 66.7% for "ground" deaths. However, it exhibits a strong bias toward these majority classes, struggling significantly with nuanced, high-skill failure scenarios. For instance, it achieved only 25% accuracy for "enemy_bullet" deaths and failed to correctly classify any "ufo_collision" events (NaN accuracy). This is a classic symptom of training on imbalanced data without adjustment; to improve the detection of these minority classes, future iterations should employ techniques such as SMOTE (Synthetic Minority Over-sampling Technique) or apply Class Weights during training.
+
+**Top Predictors (Feature Importance):** Despite the classification challenges, the feature importance analysis offers valuable behavioral insights. `bullets_fired` (Gain: 0.35) and `pipes_passed` (Gain: 0.34) emerge as the most influential predictors. This suggests the model is attempting to distinguish outcomes based on two distinct archetypes: the "Dodger" (high `pipes_passed`, low `bullets_fired`) and the "Fighter" (high `bullets_fired`). The model correctly infers that a player’s engagement style - whether they focus on navigation or combat - is the primary precursor to their specific type of failure. However, as noted above, the class imbalance currently prevents the model from fully leveraging these signals to accurately pinpoint the specific combat-related deaths.
+
+## 6. Business Insights & Recommendations
+
+### 6.1. Key Business Insights
+
+**Success is Driven by Aggressive Efficiency, Not Just Survival**: The most successful players are not passive. Behavioral analysis reveals that `efficiency` (`score_per_second`) is overwhelmingly driven by a high-risk, high-reward playstyle characterized by aggressive UFO engagement (`risk_taking`, `ufo_rate`). Simply dodging obstacles is a suboptimal strategy.
+
+**Pipes are the Universal Bottleneck**: While pipes are the most common cause of death for novices, their long tail in the score distribution shows they remain a threat even to experts. This makes pipe navigation the single most critical skill gate and a constant challenge for all players.
+
+**Early Game Barrier**: The initial gameplay presents a significant barrier, with 61% of all game sessions ending within the first five seconds. These early failures are almost exclusively caused by collisions with the 'Ground,' 'Pipes,' and 'Ceiling,' indicating a steep initial learning curve that immediately filters out new players.
+
+**Player Base is Segmented into Three Distinct Personas**: Clustering identifies three clear player types:
+
+- Novices (Cluster 2, ~30%): Players who fail almost immediately. They are at the highest risk of churn.
+
+- Average Players (Cluster 3, ~60%): The largest group, representing players who have passed the initial hurdle but have not yet achieved mastery.
+
+- Experts (Cluster 1, ~10%): Highly skilled, long-surviving players who actively engage with all game systems. They are the primary source of high scores and likely the most engaged.
+
+**Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness` and `bullet_fired`, confirming that active players survive longer than passive ones.
+
+### 6.2. Actionable Recommendations
+
+**6.2.1. For Onboarding and Reducing Early Churn (Targeting Novices):**
+
+**Recommendation:** Redesign the initial tutorial to explicitly address the two primary novice failure modes.
+
+- Prevent "Ground" Deaths: The first tutorial step should force the player to practice and understand the basic flight mechanics (e.g., "Tap to lift the plane and avoid crashing into the ground").
+
+- Prevent "Ceiling" Deaths: The second step should introduce the danger of overtapping (e.g., "Avoid tapping too much, or you'll hit the ceiling!").
+
+**Business Impact:** Smoother onboarding will reduce immediate frustration, lower initial churn rates, and convert more novices into the larger, more valuable "Average Player" segment.
+
+**6.2.2. For Game Balancing and Progressive Difficulty (Targeting All Players):**
+
+**Recommendation:** Implement a dynamic difficulty system that scales pipe challenges based on player performance.
+
+- For Novices/Average Players: Widen the gaps between the first few pipes to provide a more forgiving learning curve.
+
+- For Experts: Introduce more complex pipe patterns (e.g., moving pipes, tighter gaps) later in the game to maintain challenge and engagement for skilled players who have mastered the basic layout.
+
+**Business Impact:** This creates a more satisfying experience for all skill levels, increasing overall player retention and session length.
+
+**6.2.3. For Enhancing Engagement and Monetization (Targeting Average Players & Experts):**
+
+**Recommendation:** Incentivize the "Aggressive Efficiency" playstyle that the data shows is most successful and engaging.
+
+- Introduce Combo Multipliers: Reward players for shooting multiple UFOs in quick succession.
+
+- Create "Bounty" Events: Periodically spawn high-value UFOs that offer bonus coins or points, explicitly encouraging combat.
+
+- Monetize Combat: Offer visual customizations for bullets or temporary power-ups (e.g., rapid fire, homing missiles) for sale, appealing directly to the combat-oriented playstyle of high-value players.
+
+**Business Impact:** This makes the core gameplay loop more dynamic and rewarding, directly increasing player engagement and opening new revenue streams.
+
+**6.2.4. For Personalized Player Retention and In-Game Assistance:**
+
+**Recommendation:** Use the real-time predictive models to offer contextual tips and targeted rewards.
+
+- For a player predicted to be a "Novice": After a quick death, show a tip: "Tip: Focus on passing through the pipe gaps to collect coins and survive longer!"
+
+- For an "Average Player" with low aggressiveness: Offer a challenge: "Shoot 3 UFOs in your next run to earn a 2x coin bonus!"
+
+- Leverage the Death Reason Predictor: If the model predicts a player is likely to die by an "enemy_bullet," the game could subtly make enemy projectiles slightly more visible for a short period.
+
+**Business Impact:** Personalized engagement makes players feel understood and supported, significantly improving retention and fostering a positive relationship with the game.
+
+**6.2.5. For Long-Term Content and Feature Development:**
+
+**Recommendation:** Develop end-game content that caters to Experts.
+
+- Create an "Endless" mode with leaderboards.
+
+- Design "Boss Battles" against large UFOs, providing a ultimate challenge that fully utilizes the combat skills of top players.
+
+**Business Impact:** This retains the most dedicated and valuable players, creates community buzz around high-score competitions, and extends the game's lifecycle.
+
+> **By implementing these above data-driven recommendations, Flappy Plane Adventure can evolve into a more balanced and engaging game that effectively nurtures players from their first tap to expert-level mastery.**
+
+## 7. Limitations
+
+While this analysis provides meaningful insights into player behaviour and after-session performance, several limitations should be acknowledged. The dataset contains a relatively small number of sessions, which restricts the diversity of gameplay patterns that can be observed. To compensate, a bootstrapping approach was used to expand the training data; however, synthetic samples generated through resampling cannot introduce genuinely new behaviours. They simply replicate or recombine patterns already present in the original 250 sessions, which may reinforce existing biases rather than capture broader behavioural variability.
+
+Bootstrapping also assumes that sessions are independent and identically distributed, an assumption that may not fully hold in a game environment where players improve or adapt over time. Although a chronological split was applied to reduce leakage, the synthetic data can still obscure temporal progression or learning effects. Consequently, models trained on heavily bootstrapped data may show deceptively strong performance metrics - particularly in tasks where target variables are mathematically tied to input features, such as score prediction. Extremely high R² values in these cases may reflect learned scoring rules rather than genuine predictive generalisation.
+
+In addition, several engineered features are highly correlated, reducing model interpretability and potentially inflating the influence of related variables. The dataset also contains imbalanced outcome categories, especially among rare death reasons, which limits the reliability of multiclass classification results. Finally, the analysis is constrained to single-session behaviour and does not account for longer-term trends such as player learning, retention, or progression.
+
+Future work should aim to collect larger-scale, multi-session data from a broader range of players and consider modelling temporal trajectories. Such extensions would improve robustness, reduce sampling bias, and allow the development of more generalisable predictive models.

@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flappy Plane Adventure</title>
+<style>
+body { 
+  margin: 0; 
+  overflow: hidden; 
+  background: linear-gradient(to bottom, #1e5799, #207cca);
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+}
+canvas { 
+  display: block; 
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.3);
+}
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+  z-index: 10;
+}
+#guideBtn {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: all 0.2s;
+  font-size: 20px;
+}
+#guideBtn:hover { 
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-2px);
+}
+#author { 
+  position: absolute;
+  bottom: 15px;
+  right: 15px;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.8);
+  text-shadow: 1px 1px 2px rgba(0,0,0,0.5);
+}
+
+#scoreBoard {
+  position: absolute;
+  top: 10px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: white;
+  font-size: 24px;
+  font-weight: bold;
+  text-shadow: 1px 1px 3px rgba(0,0,0,0.7);
+  background: rgba(0, 0, 0, 0.4);
+  padding: 10px 20px;
+  border-radius: 30px;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+#lives {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: flex;
+  gap: 5px;
+  z-index: 10;
+}
+
+.heart {
+  font-size: 24px;
+  filter: drop-shadow(1px 1px 1px rgba(0,0,0,0.5));
+}
+
+#analyticsBtn {
+  position: absolute;
+  bottom: 15px;
+  left: 15px;
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  padding: 8px 16px;
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: bold;
+  transition: all 0.2s;
+  font-size: 16px;
+}
+#analyticsBtn:hover { 
+  background: rgba(0, 0, 0, 0.8);
+  transform: translateY(-2px);
+}
+
+/* Thêm style cho restart button */
+#restartBtn {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 12px 30px;
+  cursor: pointer;
+  border-radius: 25px;
+  font-weight: bold;
+  font-size: 18px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+  z-index: 20;
+  display: none;
+}
+
+#restartBtn:hover { 
+  transform: translateX(-50%) translateY(-2px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Thêm loading indicator */
+#loadingIndicator {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 20px;
+  border-radius: 10px;
+  z-index: 100;
+  display: none;
+}
+
+/* Style cho start screen */
+#startScreen {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 50;
+  color: white;
+}
+
+#startButton {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 15px 40px;
+  font-size: 20px;
+  font-weight: bold;
+  border-radius: 25px;
+  cursor: pointer;
+  margin-top: 30px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+}
+
+#startButton:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+
+/* Notification style - Ẩn hoàn toàn */
+#notification {
+  display: none !important;
+}
+
+#syncBtn {
+  background: white;
+  color: #ff9800;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-top: 5px;
+  font-weight: bold;
+}
+</style>
+</head>
+<body>
+<div id="ui">
+  <button id="guideBtn">Guide</button>
+</div>
+
+<div id="scoreBoard">
+  <span>Score:</span>
+  <span id="scoreValue">0</span>
+</div>
+<div id="lives"></div>
+<button id="analyticsBtn">View Analytics</button>
+<button id="restartBtn">Play Again</button>
+<div id="author">Created by: Hoang Son Lai</div>
+
+<!-- Thêm notification - Đã ẩn hoàn toàn -->
+<div id="notification"></div>
+
+<!-- Thêm start screen -->
+<div id="startScreen">
+  <h1 style="font-size: 48px; margin-bottom: 20px; color: #FFD740;">FLAPPY PLANE ADVENTURE</h1>
+  <div style="background: rgba(255, 255, 255, 0.1); padding: 30px; border-radius: 15px; max-width: 500px;">
+    <h2 style="color: #FFD740; margin-bottom: 20px;">Game Guide</h2>
+    <div style="text-align: left; font-size: 18px; line-height: 1.6;">
+      <p>🚀 <strong>Press SPACE or CLICK</strong> to make the plane fly up and shoot bullets</p>
+      <p>💰 <strong>Collect coins</strong> for +1 point</p>
+      <p>👽 <strong>Shoot UFOs</strong> for +3 points</p>
+      <p>❤️ <strong>You have 5 lives</strong> - avoid pipes, UFOs and enemy bullets</p>
+      <p>💾 <strong>Data is saved locally</strong> when server is offline</p>
+    </div>
+    <button id="startButton">Start Game</button>
+  </div>
+</div>
+
+<!-- Thêm loading indicator -->
+<div id="loadingIndicator">
+  Sending analytics data...
+</div>
+
+<canvas id="gameCanvas"></canvas>
+<script>
+// THÊM: Define server URL (thay bằng Render URL thực)
+const SERVER_URL = 'https://flappy-analytics.onrender.com';  // Hoặc window.location.origin nếu game và server cùng domain
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+// Mở rộng kích thước canvas
+canvas.width = 600;
+canvas.height = 800;
+
+// Analytics tracking - THÊM CỜ KIỂM SOÁT
+let gameAnalytics = {
+    gameId: null,
+    startTime: null,
+    endTime: null,
+    score: 0,
+    coinsCollected: 0,
+    ufosShot: 0,
+    bulletsFired: 0,
+    deathReason: null,
+    gameDuration: 0,
+    pipesPassed: 0,
+    sent: false // THÊM: Đánh dấu đã gửi thành công
+};
+
+// THÊM: Hàng đợi analytics chưa gửi được
+let pendingAnalytics = JSON.parse(localStorage.getItem('pendingPlaneAnalytics') || '[]');
+let isSyncing = false; // THÊM: Tránh đồng bộ trùng lặp
+
+// Game state - THÊM BIẾN KIỂM SOÁT
+let showGuide = false;
+let plane = { 
+    x: 100, 
+    y: 400, 
+    width: 50, 
+    height: 25, 
+    dy: 0, 
+    gravity: 0.4, 
+    jump: -8,
+    lives: 5,
+    speed: 7
+};
+let isSendingAnalytics = false;
+let gameStarted = false;
+let gameActive = false;
+
+// Game objects
+let pipes = [], coins = [], enemies = [], bullets = [], enemyBullets = [];
+let frame = 0, score = 0, gameOver = false;
+let pipesPassed = 0;
+
+// TĂNG TỐC ĐỘ DI CHUYỂN CỦA CÁC VẬT THỂ
+const PIPE_SPEED = 3;
+const ENEMY_SPEED = 3;
+const COIN_SPEED = 3;
+const BULLET_SPEED = 7;
+const ENEMY_BULLET_SPEED = 6;
+
+// THÊM: Hàm lưu analytics vào hàng đợi
+function queueAnalytics(analyticsData) {
+    analyticsData.timestamp = new Date().toISOString();
+    analyticsData.sent = false;
+    pendingAnalytics.push(analyticsData);
+    
+    // Giới hạn kích thước hàng đợi
+    if (pendingAnalytics.length > 50) {
+        pendingAnalytics = pendingAnalytics.slice(-50);
+    }
+    
+    localStorage.setItem('pendingPlaneAnalytics', JSON.stringify(pendingAnalytics));
+    
+    // KHÔNG HIỂN THỊ THÔNG BÁO NỮA
+    // if (pendingAnalytics.length > 1) {
+    //     showNotification(`${pendingAnalytics.length} games waiting to sync`, 5000);
+    // }
+}
+
+// THÊM: Hàm đồng bộ BATCH - GỬI NHIỀU GAME CÙNG LÚC
+function syncBatchAnalytics(retryCount = 3) {
+    if (isSyncing || pendingAnalytics.length === 0 || retryCount <= 0) return;
+    
+    isSyncing = true;
+    const unsentGames = pendingAnalytics.filter(game => !game.sent);
+    
+    if (unsentGames.length === 0) {
+        isSyncing = false;
+        return;
+    }
+    
+    console.log(`Syncing batch of ${unsentGames.length} games...`);
+    // KHÔNG HIỂN THỊ THÔNG BÁO KHI ĐANG ĐỒNG BỘ
+    // showNotification(`Syncing ${unsentGames.length} games...`, 0);
+    
+    // GỬI TẤT CẢ TRONG MỘT LẦN
+    fetch(`${SERVER_URL}/api/sync-analytics`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ games: unsentGames })
+    })
+    .then(response => {
+        if (response.ok) {
+            return response.json();
+        }
+        throw new Error('Network response was not ok');
+    })
+    .then(data => {
+        console.log('Batch sync successful:', data);
+        
+        // ĐÁNH DẤU TẤT CẢ ĐÃ GỬI THÀNH CÔNG
+        const successfulIds = new Set(unsentGames.map(game => game.gameId));
+        pendingAnalytics = pendingAnalytics.map(game => 
+            successfulIds.has(game.gameId) ? { ...game, sent: true } : game
+        );
+        
+        // LỌC RA NHỮNG GAME ĐÃ GỬI THÀNH CÔNG (giữ lại những game chưa gửi được)
+        pendingAnalytics = pendingAnalytics.filter(game => !game.sent);
+        
+        localStorage.setItem('pendingPlaneAnalytics', JSON.stringify(pendingAnalytics));
+        
+        // KHÔNG HIỂN THỊ THÔNG BÁO THÀNH CÔNG
+        // showNotification(`Successfully synced ${unsentGames.length} games!`, 3000);
+        isSyncing = false;
+    })
+    .catch(error => {
+        console.log('Batch sync failed:', error);
+        // KHÔNG HIỂN THỊ THÔNG BÁO LỖI
+        // showNotification('Sync failed - will retry later', 3000);
+        isSyncing = false;
+        // Retry sau 5s
+        setTimeout(() => syncBatchAnalytics(retryCount - 1), 5000);
+    });
+}
+
+// THÊM: Hàm để phân tích dữ liệu local khi server không khả dụng
+function getLocalAnalytics() {
+    try {
+        const gamesHistory = JSON.parse(localStorage.getItem('planeGamesHistory') || '[]');
+        const pending = JSON.parse(localStorage.getItem('pendingPlaneAnalytics') || '[]');
+        
+        return {
+            gamesHistory: gamesHistory,
+            pendingAnalytics: pending,
+            totalGames: gamesHistory.length + pending.length
+        };
+    } catch (e) {
+        console.log('Error reading local analytics:', e);
+        return { gamesHistory: [], pendingAnalytics: [], totalGames: 0 };
+    }
+}
+
+// THÊM: Kiểm tra kết nối server khi bắt đầu game
+function checkServerConnection() {
+    return fetch(`${SERVER_URL}/health`, {
+        method: 'GET',
+        signal: AbortSignal.timeout(2000) // Timeout sau 2 giây
+    })
+    .then(response => response.ok)
+    .catch(() => false);
+}
+
+// THÊM: Hiển thị thông báo - ĐÃ VÔ HIỆU HÓA HOÀN TOÀN
+function showNotification(message, duration = 3000) {
+    // KHÔNG LÀM GÌ CẢ - ẨN HOÀN TOÀN THÔNG BÁO
+    return;
+}
+
+// Create pipe + coin + UFO enemy
+function createPipe() {
+    let topHeight = Math.random()*200+100;
+    let gap = 220;
+    pipes.push({ x: canvas.width, y:0, width:70, height:topHeight });
+    pipes.push({ x: canvas.width, y:topHeight+gap, width:70, height:canvas.height-(topHeight+gap) });
+    coins.push({ x:canvas.width+35, y:topHeight+gap/2-10, width:25, height:25, collected:false });
+    enemies.push({ 
+        x: canvas.width+35, y: topHeight+gap/2-15, width:35, height:20, alive:true, 
+        dy:1.5,
+        topY:topHeight, bottomY:topHeight+gap-20, 
+        shootCooldown: Math.floor(Math.random()*80+40)
+    });
+}
+
+// Start new game analytics - TỐI ƯU HÓA
+function startGameAnalytics() {
+    gameAnalytics = {
+        gameId: 'plane_' + Date.now(),
+        startTime: new Date(),
+        endTime: null,
+        score: 0,
+        coinsCollected: 0,
+        ufosShot: 0,
+        bulletsFired: 0,
+        deathReason: null,
+        gameDuration: 0,
+        pipesPassed: 0,
+        sent: false
+    };
+    gameStarted = true;
+    gameActive = true;
+    
+    // KIỂM TRA SERVER VÀ ĐỒNG BỘ NHANH
+    checkServerConnection().then(serverOnline => {
+        if (serverOnline) {
+            // Nếu có dữ liệu chờ và chưa đồng bộ, thực hiện đồng bộ batch
+            const unsentCount = pendingAnalytics.filter(game => !game.sent).length;
+            if (unsentCount > 0) {
+                setTimeout(syncBatchAnalytics, 1000); // Đồng bộ sau 1 giây
+            }
+        } else {
+            // KHÔNG HIỂN THỊ THÔNG BÁO "SERVER OFFLINE"
+        }
+    });
+}
+
+// Send analytics data - TỐI ƯU HÓA
+function sendAnalyticsData() {
+    if (isSendingAnalytics || !gameAnalytics.gameId || gameAnalytics.sent) return;
+    
+    isSendingAnalytics = true;
+    
+    if (gameAnalytics.gameId) {
+        gameAnalytics.endTime = new Date();
+        gameAnalytics.gameDuration = Math.floor((gameAnalytics.endTime - gameAnalytics.startTime) / 1000);
+        gameAnalytics.score = score;
+        
+        console.log('Sending analytics:', gameAnalytics);
+        
+        // THỬ GỬI TRỰC TIẾP - NHANH HƠN
+        fetch(`${SERVER_URL}/api/game-analytics`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(gameAnalytics),
+            signal: AbortSignal.timeout(2000) // Timeout nhanh hơn
+        })
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Analytics sent successfully:', data);
+            gameAnalytics.sent = true;
+            isSendingAnalytics = false;
+            storeLocalAnalytics();
+        })
+        .catch(error => {
+            console.log('Direct send failed, queuing for batch sync:', error);
+            
+            // THÊM VÀO HÀNG ĐỢI VÀ SẼ ĐỒNG BỘ SAU
+            queueAnalytics(gameAnalytics);
+            isSendingAnalytics = false;
+            storeLocalAnalytics();
+        });
+    }
+}
+
+// Store analytics locally
+function storeLocalAnalytics() {
+    try {
+        let gamesHistory = JSON.parse(localStorage.getItem('planeGamesHistory') || '[]');
+        
+        // Chỉ thêm nếu chưa tồn tại
+        const exists = gamesHistory.some(game => game.gameId === gameAnalytics.gameId);
+        if (!exists) {
+            gamesHistory.unshift(gameAnalytics);
+            
+            if (gamesHistory.length > 50) { // Giảm kích thước lưu trữ
+                gamesHistory = gamesHistory.slice(0, 50);
+            }
+            
+            localStorage.setItem('planeGamesHistory', JSON.stringify(gamesHistory));
+        }
+    } catch (e) {
+        console.log('Local storage error:', e);
+    }
+}
+
+// Loading indicator functions
+function showLoadingIndicator() {
+    document.getElementById('loadingIndicator').style.display = 'block';
+}
+
+function hideLoadingIndicator() {
+    document.getElementById('loadingIndicator').style.display = 'none';
+}
+
+// Ẩn/hiện start screen
+function showStartScreen() {
+    document.getElementById('startScreen').style.display = 'flex';
+}
+
+function hideStartScreen() {
+    document.getElementById('startScreen').style.display = 'none';
+}
+
+// Update game
+function update() {
+    if(showGuide || gameOver || !gameActive) return;
+    
+    plane.dy += plane.gravity; 
+    plane.y += plane.dy;
+
+    // Track pipes passed
+    pipesPassed = Math.max(pipesPassed, Math.floor(frame / 100));
+    gameAnalytics.pipesPassed = pipesPassed;
+
+    // Pipes collision
+    for(let p of pipes){
+        p.x -= PIPE_SPEED;
+        if(plane.x < p.x+p.width && plane.x+plane.width > p.x &&
+           plane.y < p.y+p.height && plane.y+plane.height > p.y){
+            gameAnalytics.deathReason = 'pipe';
+            handleGameOver();
+            return;
+        }
+    }
+
+    // Coins collection
+    for(let c of coins){
+        c.x -= COIN_SPEED;
+        if(!c.collected && plane.x < c.x+c.width && plane.x+plane.width>c.x &&
+           plane.y < c.y+c.height && plane.y+plane.height>c.y){
+            score++; 
+            gameAnalytics.coinsCollected++;
+            c.collected=true;
+            document.getElementById('scoreValue').textContent = score;
+        }
+    }
+
+    // Enemies
+    for(let e of enemies){
+        e.x -= ENEMY_SPEED; 
+        e.y += e.dy;
+        if(e.y<e.topY || e.y+e.height>e.bottomY) e.dy*=-1;
+
+        // UFO collision
+        if(plane.x<e.x+e.width && plane.x+plane.width>e.x &&
+           plane.y<e.y+e.height && plane.y+plane.height>e.y){
+            plane.lives--;
+            updateLivesDisplay();
+            e.alive=false;
+            if(plane.lives<=0) {
+                gameAnalytics.deathReason = 'ufo_collision';
+                handleGameOver();
+                return;
+            }
+        }
+
+        e.shootCooldown--;
+        if(e.shootCooldown<=0){
+            enemyBullets.push({ x:e.x-5, y:e.y+e.height/2-2, width:10, height:5 });
+            e.shootCooldown=Math.floor(Math.random()*80+40);
+        }
+    }
+
+    // Player bullets
+    for(let b of bullets){
+        b.x += BULLET_SPEED;
+        for(let e of enemies){
+            if(e.alive && b.x < e.x+e.width && b.x+b.width>e.x &&
+               b.y < e.y+e.height && b.y+b.height>e.y){
+                e.alive=false; b.hit=true; score+=3;
+                gameAnalytics.ufosShot++;
+                document.getElementById('scoreValue').textContent = score;
+            }
+        }
+    }
+
+    // Enemy bullets
+    for(let eb of enemyBullets){
+        eb.x -= ENEMY_BULLET_SPEED;
+        if(plane.x<eb.x+eb.width && plane.x+plane.width>eb.x &&
+           plane.y<eb.y+eb.height && plane.y+plane.height>eb.y){
+            plane.lives--;
+            updateLivesDisplay();
+            eb.hit=true;
+            if(plane.lives<=0) {
+                gameAnalytics.deathReason = 'enemy_bullet';
+                handleGameOver();
+                return;
+            }
+        }
+    }
+
+    // Remove offscreen objects
+    pipes = pipes.filter(p=>p.x+p.width>0);
+    coins = coins.filter(c=>c.x+c.width>0);
+    enemies = enemies.filter(e=>e.x+e.width>0 && e.alive);
+    bullets = bullets.filter(b=>b.x<canvas.width && !b.hit);
+    enemyBullets = enemyBullets.filter(eb=>eb.x+eb.width>0 && !eb.hit);
+
+    // Boundary check
+    if(plane.y+plane.height>canvas.height || plane.y<0) {
+        gameAnalytics.deathReason = plane.y+plane.height>canvas.height ? 'ground' : 'ceiling';
+        handleGameOver();
+        return;
+    }
+    
+    if(frame%100===0) createPipe();
+    frame++;
+}
+
+// Xử lý khi game over
+function handleGameOver() {
+    if (gameOver) return;
+    
+    gameOver = true;
+    gameActive = false;
+    showRestartButton();
+    
+    // GỬI NGAY LẬP TỨC - KHÔNG CHỜ
+    sendAnalyticsData();
+}
+
+// Show restart button when game over
+function showRestartButton() {
+    const restartBtn = document.getElementById('restartBtn');
+    restartBtn.style.display = 'block';
+}
+
+// Hide restart button when game starts
+function hideRestartButton() {
+    const restartBtn = document.getElementById('restartBtn');
+    restartBtn.style.display = 'none';
+}
+
+// Các hàm draw... (giữ nguyên từ code trước)
+function drawPlane(x,y,w,h){
+    ctx.save(); 
+    ctx.translate(x,y);
+    ctx.fillStyle = '#FF5252';
+    ctx.beginPath(); 
+    ctx.moveTo(0, h/2); 
+    ctx.lineTo(w, 0); 
+    ctx.lineTo(w, h); 
+    ctx.closePath(); 
+    ctx.fill();
+    
+    ctx.fillStyle = '#D32F2F';
+    ctx.beginPath();
+    ctx.moveTo(w*0.3, h);
+    ctx.lineTo(w*0.3, h+10);
+    ctx.lineTo(w*0.6, h);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.beginPath();
+    ctx.moveTo(w*0.3, 0);
+    ctx.lineTo(w*0.3, -10);
+    ctx.lineTo(w*0.6, 0);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.fillStyle = '#64B5F6';
+    ctx.beginPath();
+    ctx.ellipse(w*0.7, h/2, w*0.15, h*0.3, 0, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#424242';
+    ctx.fillRect(w*0.1, h*0.3, w*0.15, h*0.4);
+    ctx.fillRect(w*0.1, h*0.3-5, w*0.15, 5);
+    ctx.fillRect(w*0.1, h*0.7, w*0.15, 5);
+    
+    ctx.restore();
+}
+
+function drawUFO(e){
+    ctx.save(); 
+    ctx.translate(e.x, e.y);
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, e.width/2);
+    gradient.addColorStop(0, '#7B1FA2');
+    gradient.addColorStop(1, '#4A148C');
+    ctx.fillStyle = gradient;
+    ctx.beginPath(); 
+    ctx.ellipse(0, 0, e.width/2, e.height/2, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    ctx.fillStyle = 'rgba(179, 229, 252, 0.7)';
+    ctx.beginPath(); 
+    ctx.ellipse(0, -2, e.width/4, e.height/4, 0, 0, Math.PI*2); 
+    ctx.fill();
+    
+    ctx.fillStyle = '#00E676';
+    ctx.beginPath();
+    ctx.arc(-e.width/4, e.height/3, 2, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#FF4081';
+    ctx.beginPath();
+    ctx.arc(e.width/4, e.height/3, 2, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+function drawPipe(x, y, width, height) {
+    const gradient = ctx.createLinearGradient(x, y, x + width, y);
+    gradient.addColorStop(0, '#388E3C');
+    gradient.addColorStop(1, '#2E7D32');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(x, y, width, height);
+    
+    ctx.fillStyle = '#1B5E20';
+    ctx.fillRect(x - 5, y, 5, height);
+    
+    if (y === 0) {
+        ctx.fillRect(x - 5, height, width + 5, 25);
+    } else {
+        ctx.fillRect(x - 5, y - 25, width + 5, 25);
+    }
+}
+
+function drawCoin(c) {
+    if (c.collected) return;
+    
+    ctx.save();
+    ctx.translate(c.x + c.width/2, c.y + c.height/2);
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, c.width/2);
+    gradient.addColorStop(0, '#FFD740');
+    gradient.addColorStop(1, '#FFAB00');
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.arc(0, 0, c.width/2, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.fillStyle = '#FFC400';
+    ctx.beginPath();
+    ctx.arc(0, 0, c.width/3, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+    ctx.beginPath();
+    ctx.ellipse(-c.width/6, -c.width/6, c.width/8, c.width/5, Math.PI/4, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+function drawHeart(x, y, size) {
+    ctx.save();
+    ctx.translate(x, y);
+    
+    const gradient = ctx.createRadialGradient(0, 0, 0, 0, 0, size);
+    gradient.addColorStop(0, '#FF5252');
+    gradient.addColorStop(1, '#D32F2F');
+    ctx.fillStyle = gradient;
+    
+    ctx.beginPath();
+    let topCurveHeight = size * 0.3;
+    ctx.moveTo(0, topCurveHeight);
+    ctx.bezierCurveTo(0, 0, -size/2, 0, -size/2, topCurveHeight);
+    ctx.bezierCurveTo(-size/2, (size+topCurveHeight)/2, 0, size, 0, size);
+    ctx.bezierCurveTo(0, size, size/2, (size+topCurveHeight)/2, size/2, topCurveHeight);
+    ctx.bezierCurveTo(size/2, 0, 0, 0, 0, topCurveHeight);
+    ctx.closePath();
+    ctx.fill();
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+    ctx.beginPath();
+    ctx.ellipse(-size/6, size/6, size/8, size/6, Math.PI/4, 0, Math.PI*2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+// Update lives display
+function updateLivesDisplay() {
+    const livesContainer = document.getElementById('lives');
+    livesContainer.innerHTML = '';
+    
+    for (let i = 0; i < plane.lives; i++) {
+        const heart = document.createElement('div');
+        heart.innerHTML = '❤️';
+        heart.className = 'heart';
+        livesContainer.appendChild(heart);
+    }
+}
+
+// Draw game
+function draw(){
+    const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+    gradient.addColorStop(0, '#87CEEB');
+    gradient.addColorStop(1, '#1E88E5');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    for (let i = 0; i < 3; i++) {
+        const x = (frame * 0.5 + i * 200) % (canvas.width + 200) - 100;
+        const y = 100 + i * 150;
+        drawCloud(x, y, 80);
+    }
+    
+    if(showGuide){
+        drawGuideScreen();
+        return;
+    }
+
+    pipes.forEach(p => drawPipe(p.x, p.y, p.width, p.height));
+    coins.forEach(drawCoin);
+    enemies.forEach(drawUFO);
+    
+    ctx.fillStyle = '#FFD740';
+    bullets.forEach(b => {
+        ctx.fillRect(b.x, b.y, b.width, b.height);
+        ctx.fillStyle = 'rgba(255, 215, 64, 0.3)';
+        ctx.fillRect(b.x-2, b.y-2, b.width+4, b.height+4);
+        ctx.fillStyle = '#FFD740';
+    });
+    
+    ctx.fillStyle = '#2196F3';
+    enemyBullets.forEach(eb => {
+        ctx.fillRect(eb.x, eb.y, eb.width, eb.height);
+        ctx.fillStyle = 'rgba(33, 150, 243, 0.3)';
+        ctx.fillRect(eb.x-2, eb.y-2, eb.width+4, eb.height+4);
+        ctx.fillStyle = '#2196F3';
+    });
+    
+    drawPlane(plane.x, plane.y, plane.width, plane.height);
+    
+    ctx.fillStyle = '#5D4037';
+    ctx.fillRect(0, canvas.height - 25, canvas.width, 25);
+    ctx.fillStyle = '#4E342E';
+    ctx.fillRect(0, canvas.height - 25, canvas.width, 5);
+    
+    if(gameOver){
+        drawGameOverScreen();
+    }
+}
+
+function drawCloud(x, y, size) {
+    ctx.save();
+    ctx.translate(x, y);
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+    ctx.beginPath();
+    ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2);
+    ctx.arc(size * 0.3, -size * 0.2, size * 0.4, 0, Math.PI * 2);
+    ctx.arc(size * 0.6, 0, size * 0.5, 0, Math.PI * 2);
+    ctx.arc(size * 0.3, size * 0.2, size * 0.4, 0, Math.PI * 2);
+    ctx.fill();
+    
+    ctx.restore();
+}
+
+function drawGuideScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#FFD740';
+    ctx.font = 'bold 36px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('FLAPPY PLANE GUIDE', canvas.width/2, 80);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '20px sans-serif';
+    ctx.textAlign = 'left';
+    
+    const instructions = [
+        '- Press SPACE to make the plane jump',
+        '- Press SPACE to shoot bullets at UFOs',
+        '- Collect coins for +1 point',
+        '- Shoot UFOs for +3 points',
+        '- Avoid pipes, UFOs, and enemy bullets',
+        '- Colliding with UFOs or bullets loses 1 heart'
+    ];
+    
+    instructions.forEach((text, index) => {
+        ctx.fillText(text, 60, 150 + index * 50);
+    });
+    
+    ctx.fillStyle = '#4CAF50';
+    ctx.fillRect(canvas.width/2 - 100, 500, 200, 60);
+    ctx.fillStyle = 'white';
+    ctx.font = 'bold 24px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('START GAME', canvas.width/2, 540);
+}
+
+function drawGameOverScreen() {
+    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = '#FF5252';
+    ctx.font = 'bold 56px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('GAME OVER', canvas.width/2, canvas.height/2 - 60);
+    
+    ctx.fillStyle = 'white';
+    ctx.font = '28px sans-serif';
+    ctx.fillText(`Final Score: ${score}`, canvas.width/2, canvas.height/2);
+    
+    ctx.font = '18px sans-serif';
+    ctx.fillText(`Coins: ${gameAnalytics.coinsCollected} | UFOs: ${gameAnalytics.ufosShot} | Bullets: ${gameAnalytics.bulletsFired}`, canvas.width/2, canvas.height/2 + 30);
+    
+    const localData = getLocalAnalytics();
+    ctx.font = '16px sans-serif';
+    if (localData.pendingAnalytics.length > 0) {
+        ctx.fillStyle = '#FFD740';
+        ctx.fillText(`${localData.pendingAnalytics.length} games waiting to sync with server`, canvas.width/2, canvas.height/2 + 60);
+    } else if (gameAnalytics.sent) {
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillText('Game data successfully saved!', canvas.width/2, canvas.height/2 + 60);
+    } else {
+        ctx.fillStyle = '#FF9800';
+        ctx.fillText('Game data saved locally', canvas.width/2, canvas.height/2 + 60);
+    }
+    
+    ctx.fillStyle = '#FFD740';
+    ctx.font = '24px sans-serif';
+    ctx.fillText('Click Play Again button to play again', canvas.width/2, canvas.height/2 + 90);
+}
+
+// Game loop
+function loop(){ 
+    update(); 
+    draw(); 
+    requestAnimationFrame(loop); 
+}
+
+// Event listeners
+document.getElementById('guideBtn').addEventListener('click',() => {
+    showGuide = true;
+});
+
+document.getElementById('analyticsBtn').addEventListener('click',() => {
+    window.location.href = '../analysis.html';
+});
+
+document.getElementById('startButton').addEventListener('click', startGame);
+document.getElementById('restartBtn').addEventListener('click', resetGame);
+
+document.addEventListener('keydown', e => {
+    if(e.code === 'Space'){
+        e.preventDefault();
+        
+        if(showGuide){ 
+            showGuide = false; 
+            return; 
+        } 
+        
+        if(gameActive && !gameOver) {
+            plane.dy = plane.jump;
+            bullets.push({ x:plane.x+plane.width, y:plane.y+plane.height/2-2, width:10, height:5, hit:false });
+            gameAnalytics.bulletsFired++;
+        }
+    }
+});
+
+canvas.addEventListener('click', e => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    if(showGuide){ 
+        if (x >= canvas.width/2 - 100 && x <= canvas.width/2 + 100 &&
+            y >= 500 && y <= 560) {
+            showGuide = false; 
+        }
+        return; 
+    } 
+    
+    if(gameActive && !gameOver) {
+        plane.dy = plane.jump;
+        bullets.push({ x:plane.x+plane.width, y:plane.y+plane.height/2-2, width:10, height:5, hit:false });
+        gameAnalytics.bulletsFired++;
+    }
+});
+
+function startGame() {
+    hideStartScreen();
+    startGameAnalytics();
+}
+
+function resetGame(){
+    plane.y = 400; 
+    plane.dy = 0; 
+    plane.lives = 5;
+    pipes = []; 
+    coins = []; 
+    enemies = []; 
+    bullets = []; 
+    enemyBullets = [];
+    score = 0; 
+    frame = 0; 
+    pipesPassed = 0;
+    gameOver = false;
+    isSendingAnalytics = false;
+    
+    document.getElementById('scoreValue').textContent = score;
+    updateLivesDisplay();
+    hideRestartButton();
+    hideLoadingIndicator();
+    
+    startGameAnalytics();
+}
+
+// Initialize
+updateLivesDisplay();
+hideRestartButton();
+hideLoadingIndicator();
+showStartScreen();
+
+// THÊM: Kiểm tra và đồng bộ khi khởi động
+window.addEventListener('load', () => {
+    const localData = getLocalAnalytics();
+    const unsentCount = localData.pendingAnalytics.filter(game => !game.sent).length;
+    
+    if (unsentCount > 0) {
+        console.log(`Found ${unsentCount} unsent games`);
+        // Thử đồng bộ sau 3 giây khi trang load xong
+        setTimeout(() => {
+            checkServerConnection().then(online => {
+                if (online) {
+                    syncBatchAnalytics();
+                }
+            });
+        }, 3000);
+    }
+});
+
+loop();
+</script>
+</body>
+</html>

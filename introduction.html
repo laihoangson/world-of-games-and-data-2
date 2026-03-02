@@ -1,0 +1,854 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Introduction - World of Games</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        /* =========================================
+           CORE STYLES (ORIGINAL - DO NOT TOUCH)
+           ========================================= */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        :root {
+            --primary-color: #002F5F;
+            --secondary-color: #006D77;
+            --accent-color: #00c6ff;
+            --text-color: #333;
+            --light-color: #f8f9fa;
+            --dark-color: #343a40;
+            --neon-color: #00ffff;
+        }
+
+        body {
+            background-color: #f5f5f5;
+            color: var(--text-color);
+            line-height: 1.6;
+            overflow-x: hidden; /* Prevent horizontal scroll from effects */
+        }
+
+        /* Navbar Styles - STRICTLY PRESERVED */
+        .navbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 5%;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar-left, .navbar-right {
+            display: flex;
+            align-items: center;
+        }
+
+        .logo {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-right: 2rem;
+            color: white;
+            text-decoration: none;
+        }
+
+        .nav-links {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-links li {
+            margin: 0 1rem;
+        }
+
+        .nav-links a {
+            color: white;
+            text-decoration: none;
+            font-weight: 500;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+        }
+
+        .nav-links a:hover, .nav-links a.active {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .nav-icons {
+            display: flex;
+            list-style: none;
+        }
+
+        .nav-icons li {
+            margin: 0 0.5rem;
+        }
+
+        .nav-icons a {
+            color: white;
+            text-decoration: none;
+            font-size: 1.2rem;
+            padding: 0.5rem;
+            border-radius: 50%;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+        }
+
+        .nav-icons a:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+
+        .search-container {
+            position: relative;
+            margin-right: 1rem;
+        }
+
+        .search-input {
+            padding: 0.5rem 1rem;
+            border: none;
+            border-radius: 20px;
+            outline: none;
+            width: 200px;
+            transition: all 0.3s ease;
+        }
+
+        .search-input:focus {
+            width: 250px;
+        }
+
+        /* Introduction Content */
+        .introduction-container {
+            max-width: 1200px;
+            margin: 40px auto;
+            padding: 0 20px;
+        }
+
+        .page-header {
+            text-align: center;
+            margin-bottom: 50px;
+            color: var(--primary-color);
+            /* Added for animation */
+            opacity: 0; 
+            transform: translateY(30px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .page-header h1 {
+            font-size: 3rem;
+            margin-bottom: 15px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .page-header p {
+            font-size: 1.2rem;
+            max-width: 800px;
+            margin: 0 auto;
+            opacity: 0.9;
+            color: var(--dark-color);
+        }
+
+        /* Analytics Section */
+        .analytics-section {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 50px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            
+            /* Added for animation */
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.8s ease-out, transform 0.8s ease-out;
+        }
+
+        .analytics-header {
+            text-align: center;
+            margin-bottom: 30px;
+            color: var(--primary-color);
+        }
+
+        .analytics-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+
+        .analytics-features {
+            padding-right: 20px;
+        }
+
+        .analytics-features h3 {
+            margin-bottom: 15px;
+            color: var(--primary-color);
+        }
+
+        .analytics-image {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .live-server-instruction {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            transition: transform 0.3s ease;
+        }
+
+        .live-server-instruction:hover {
+            transform: scale(1.02);
+        }
+
+        .live-server-instruction h3 {
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px;
+            border-radius: 8px;
+            margin: 15px 0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            border-left: 3px solid var(--accent-color);
+        }
+
+        .code-block code {
+            display: block;
+        }
+
+        .server-status {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 5px;
+            backdrop-filter: blur(5px);
+        }
+
+        .status-indicator {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4757;
+            margin-right: 10px;
+            animation: pulse 2s infinite;
+            box-shadow: 0 0 10px #ff4757;
+        }
+
+        .status-indicator.running {
+            background: #2ed573;
+            box-shadow: 0 0 10px #2ed573;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.5; transform: scale(1.2); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        /* Games Grid */
+        .games-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+            gap: 30px;
+            margin-bottom: 50px;
+            perspective: 1000px; /* Essential for 3D tilt */
+        }
+
+        .game-card {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+            /* Modified transition for smooth 3D effect */
+            transition: transform 0.1s ease-out, box-shadow 0.3s; 
+            transform-style: preserve-3d;
+            
+            /* Added for animation */
+            opacity: 0;
+            transform: translateY(50px) rotateX(10deg);
+            transition: opacity 0.8s ease-out, transform 0.6s ease-out, box-shadow 0.3s;
+        }
+
+        .game-card:hover {
+            /* Transform is handled by JS for 3D effect, but this is fallback/enhancement */
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+            z-index: 10;
+        }
+
+        .game-header {
+            padding: 20px;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        /* Subtle shimmer on headers */
+        .game-header::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 50%;
+            height: 100%;
+            background: linear-gradient(to right, rgba(255,255,255,0) 0%, rgba(255,255,255,0.1) 50%, rgba(255,255,255,0) 100%);
+            transform: skewX(-25deg);
+            animation: shimmer 6s infinite;
+        }
+
+        @keyframes shimmer {
+            0% { left: -100%; }
+            20% { left: 200%; }
+            100% { left: 200%; }
+        }
+
+        .snake-header { background: linear-gradient(135deg, var(--primary-color), var(--secondary-color)); }
+        .plane-header { background: linear-gradient(135deg, #1a2a6c, #b21f1f); }
+        .piano-header { background: linear-gradient(135deg, #8E2DE2, #4A00E0); }
+        .brick-header { background: linear-gradient(135deg, #ff6b6b, #ffa726); }
+
+        .game-header h2 {
+            font-size: 1.8rem;
+            margin-bottom: 10px;
+            position: relative;
+            z-index: 2;
+        }
+
+        .game-body {
+            padding: 25px;
+            background: white;
+            transform: translateZ(20px); /* 3D effect depth */
+        }
+
+        .game-body p {
+            margin-bottom: 15px;
+        }
+
+        .game-features {
+            margin-top: 20px;
+        }
+
+        .game-features h3 {
+            margin-bottom: 10px;
+            color: var(--primary-color);
+            border-bottom: 2px solid #eee;
+            padding-bottom: 5px;
+        }
+
+        .features-list {
+            list-style-type: none;
+        }
+
+        .features-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            align-items: center;
+            transition: transform 0.2s;
+        }
+
+        .features-list li:hover {
+            transform: translateX(5px);
+            color: var(--secondary-color);
+        }
+
+        .features-list li:before {
+            content: "✓";
+            color: var(--secondary-color);
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .cta-button {
+            display: inline-block;
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-weight: bold;
+            margin-top: 20px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+        }
+
+        /* High-end Button Shine Effect */
+        .cta-button::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.4), transparent);
+            transition: 0.5s;
+        }
+
+        .cta-button:hover::before {
+            left: 100%;
+        }
+
+        .cta-button:hover {
+            transform: translateY(-3px) scale(1.05);
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+        }
+
+        footer {
+            background: var(--dark-color);
+            color: white;
+            text-align: center;
+            padding: 30px 0;
+            margin-top: 50px;
+        }
+
+        .footer-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        .footer-links {
+            display: flex;
+            justify-content: center;
+            list-style: none;
+            margin: 20px 0;
+        }
+
+        .footer-links li {
+            margin: 0 15px;
+        }
+
+        .footer-links a {
+            color: white;
+            text-decoration: none;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .footer-links a::after {
+            content: '';
+            position: absolute;
+            width: 0;
+            height: 2px;
+            bottom: -5px;
+            left: 0;
+            background-color: var(--accent-color);
+            transition: width 0.3s ease;
+        }
+
+        .footer-links a:hover::after {
+            width: 100%;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent-color);
+        }
+
+        /* Animation Class to be triggered by JS */
+        .element-visible {
+            opacity: 1 !important;
+            transform: translateY(0) rotateX(0) !important;
+        }
+
+        @media (max-width: 768px) {
+            .games-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .analytics-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .navbar {
+                flex-direction: column;
+                padding: 1rem;
+            }
+            
+            .navbar-left {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .logo {
+                margin-right: 0;
+                margin-bottom: 15px;
+            }
+            
+            .nav-links {
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
+            }
+            
+            .nav-links li {
+                margin: 5px 10px;
+            }
+            
+            .navbar-right {
+                margin-top: 15px;
+                width: 100%;
+                justify-content: center;
+            }
+            
+            .search-input {
+                width: 150px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="navbar-left">
+            <a href="index.html" class="logo">World of Games and Data</a>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="introduction.html" class="active">Introduction</a></li>
+                <li><a href="games.html">Games</a></li>
+                <li><a href="analysis.html">Analysis</a></li>
+                <li><a href="about.html">About Me</a></li>
+            </ul>
+        </div>
+        <div class="navbar-right">
+            <div class="search-container">
+                <input type="text" class="search-input" placeholder="Search...">
+            </div>
+            <ul class="nav-icons">
+                <li><a href="https://github.com/laihoangson" target="_blank">
+                    <i class="fab fa-github"></i>
+                </a></li>
+                <li><a href="https://www.linkedin.com/in/hoang-son-lai-92ab19282/" target="_blank">
+                    <i class="fab fa-linkedin"></i>
+                </a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="introduction-container">
+        <div class="page-header">
+            <h1>Games & Data Collection Introduction</h1>
+            <p>Explore four unique PC games, each with distinctive gameplay mechanics and features. From classic arcade experiences to innovative interactive applications. The site showcases not only game development but also live data analytics, statistical reporting, and machine learning insights - highlighting a portfolio of coding and data science.</p>
+        </div>
+        
+        <div class="analytics-section">
+            <div class="analytics-header">
+                <h2>Flappy Plane Analytics System</h2>
+                <p>Comprehensive performance tracking and visualization</p>
+            </div>
+            
+            <div class="analytics-content">
+                <div class="analytics-features">
+                    <h3>Advanced Analytics Features:</h3>
+                    <ul class="features-list">
+                        <li>Data collection during gameplay</li>
+                        <li>Performance metrics: Score, duration, coins collected, UFOs shot</li>
+                        <li>Death reason tracking for gameplay improvement</li>
+                        <li>Interactive visualizations with Chart.js</li>
+                        <li>Score distribution analysis with bar chart</li>
+                        <li>Correlation analysis between game metrics</li>
+                        <li>Recent games tracking with detailed statistics</li>
+                        <li>Backend storage with SQLite database</li>
+                        <li>RESTful API for data management</li>
+                    </ul>
+                    
+                    <p>The analytics system provides deep insights into player performance, helping identify patterns, strengths, and areas for improvement. All data is visually presented through interactive charts and comprehensive statistics.</p>
+                    
+                    <a href="analytics/analysis_plane.html" class="cta-button">View Plane Analytics Dashboard</a>
+                </div>
+                
+                <div class="analytics-image">
+                    <div class="live-server-instruction">
+                        <h3><i class="fas fa-server"></i> Live Analytics Dashboard</h3>
+                        <p>To view live analytics data, clone the repo and start the Python server:</p>
+                        
+                    <div class="code-block">
+                        <code># Clone the repository</code>
+                        <code>git clone git@github.com:laihoangson/world-of-games.git</code>
+                        <code>&nbsp;</code>
+                        <code># Go to analytics/ folder and run analytics_plane.py in VSCode to open server</code>
+                    </div>
+                        
+                        <p>Server will start on: <strong>http://localhost:5000</strong></p>
+                        
+                        <div class="server-status">
+                            <div class="status-indicator" id="statusIndicator"></div>
+                            <span id="statusText">Server not running</span>
+                        </div>
+                        
+                        <p style="margin-top: 15px; font-size: 0.9rem; opacity: 0.9;">
+                            <i class="fas fa-info-circle"></i> 
+                            Play the Plane game first to generate analytics data
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+                <div class="analytics-section">
+            <div class="analytics-header">
+                <h2>Analysis Report From Flappy Plane</h2>
+                <p>From raw data to predictive insights with statistical bootstrapping</p>
+            </div>
+            
+            <div class="analytics-content">
+                <div class="analytics-features">
+                    <h3>Advanced DA/ML Methodology:</h3>
+                    <ul class="features-list">
+                <li><strong>Exploratory Data Analysis:</strong>&nbsp;&nbsp;Correlation & distribution insights</li>
+                <li><strong>Data Bootstrapping:</strong>&nbsp;&nbsp;250 samples → 10,000+ augmented dataset</li>
+                <li><strong>Holdout Test Set:</strong>&nbsp;&nbsp;50 samples for model validation</li>
+                <li><strong>Machine Learning:</strong>&nbsp;&nbsp;XGBoost, Random Forest, K-means</li>
+                <li><strong>Predictive Modeling:</strong>&nbsp;&nbsp;Survival, score, and death reasons forecasting</li>
+                <li><strong>Player Segmentation:</strong>&nbsp;&nbsp;Behavioral clustering analysis</li>
+                <li><strong>Business Insights:</strong>&nbsp;&nbsp;Actionable recommendations</li>
+                <li><strong>Reproducible Research:</strong>&nbsp;&nbsp;R + Quarto workflow</li>
+
+                    </ul>
+                    
+                    <p>This comprehensive analysis transforms 300 game sessions into strategic insights through statistical bootstrapping and machine learning, enabling data-driven game design and player behavior understanding.</p>
+                    
+                    <a href="quarto_analysis/game_analytics.html" class="cta-button">View Report</a>
+                </div>
+                
+                <div class="analytics-image">
+                    <div class="live-server-instruction" style="background: linear-gradient(135deg, #8E2DE2, #4A00E0);">
+                        <h3><i class="fas fa-chart-line"></i> Analysis Report</h3>
+                        <p>Analytics with machine learning insights:</p>
+                        
+                        <div class="code-block">
+                            <code># Methodology Overview</code>
+                            <code>Original Data: 300 game sessions</code>
+                            <code>Training Set: 250 sessions → Bootstrap</code>
+                            <code>Test Set: 50 sessions (holdout)</code>
+                            <code>Augmented Data: 10,000 sessions</code>
+                            <code>ML Models: Random Forest, XGBoost</code>
+                            <code>Clustering: K-means (3 clusters)</code>
+                        </div>
+                        
+                        <p><strong>Features:</strong> EDA, Predictive Modeling, Player Segmentation</p>
+                        
+                        <div class="server-status">
+                            <div class="status-indicator running"></div>
+                            <span id="quartoStatusText">Static Analysis - Always Available</span>
+                        </div>
+                        
+                        <p style="margin-top: 15px; font-size: 0.9rem; opacity: 0.9;">
+                            <i class="fas fa-info-circle"></i> 
+                            No server required - Pure R/Quarto analysis
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="games-grid">
+            <div class="game-card">
+                <div class="game-header snake-header">
+                    <h2>Neon Snake</h2>
+                    <p>Classic arcade reimagined with modern visuals</p>
+                </div>
+                <div class="game-body">
+                    <p>A modern take on the classic Snake game with neon aesthetics, power-ups, and challenging obstacles. Navigate your snake to collect food while avoiding collisions with walls, yourself, and obstacles.</p>
+                    
+                    <div class="game-features">
+                        <h3>Key Features:</h3>
+                        <ul class="features-list">
+                            <li>Neon visual design with glowing effects</li>
+                            <li>Multiple power-ups: Slow and Double Points</li>
+                            <li>Dynamic obstacles that increase with score</li>
+                            <li>Progressive difficulty with increasing speed</li>
+                            <li>High score tracking with local storage</li>
+                            <li>Responsive controls with both WASD and Arrow keys</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="games/snake.html" class="cta-button">Play Snake Game</a>
+                </div>
+            </div>
+            
+            <div class="game-card">
+                <div class="game-header plane-header">
+                    <h2>Flappy Plane Adventure</h2>
+                    <p>Fly, shoot, and survive in this aerial challenge</p>
+                </div>
+                <div class="game-body">
+                    <p>A dynamic side-scrolling game where you control a plane navigating through obstacles, collecting coins, and shooting UFOs. Balance flight control with strategic shooting to maximize your score.</p>
+                    
+                    <div class="game-features">
+                        <h3>Key Features:</h3>
+                        <ul class="features-list">
+                            <li>Dual mechanics: Flight control and shooting</li>
+                            <li>Multiple enemy types with unique behaviors</li>
+                            <li>Comprehensive scoring system with coins and UFOs</li>
+                            <li>Life system with visual heart indicators</li>
+                            <li>Advanced analytics tracking system</li>
+                            <li>Progressive difficulty with increasing speed</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="games/plane.html" class="cta-button">Play Plane Game</a>
+                </div>
+            </div>
+            
+            <div class="game-card">
+                <div class="game-header piano-header">
+                    <h2>Interactive Piano & Cat Game</h2>
+                    <p>Musical creativity meets casual gaming</p>
+                </div>
+                <div class="game-body">
+                    <p>A dual-application combining a fully functional web piano with an engaging cat jumping game. Create music with the virtual piano or test your reflexes with the endless runner game.</p>
+                    
+                    <div class="game-features">
+                        <h3>Key Features:</h3>
+                        <ul class="features-list">
+                            <li>Fully functional piano with multiple octaves</li>
+                            <li>Pre-programmed songs: Happy Birthday, Jingle Bells, etc.</li>
+                            <li>Interactive cat jumping game with obstacle avoidance</li>
+                            <li>Visual feedback with key highlighting</li>
+                            <li>Volume control and responsive design</li>
+                            <li>High score tracking for the cat game</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="games/piano&cat.html" class="cta-button">Try Piano & Cat Game</a>
+                </div>
+            </div>
+            
+            <div class="game-card">
+                <div class="game-header brick-header">
+                    <h2>Neon Brick Breaker</h2>
+                    <p>Classic arcade action with modern power-ups</p>
+                </div>
+                <div class="game-body">
+                    <p>A vibrant brick breaker game with neon aesthetics, multiple power-ups, and progressive difficulty. Break all bricks while managing multiple balls and utilizing special abilities to advance through levels.</p>
+                    
+                    <div class="game-features">
+                        <h3>Key Features:</h3>
+                        <ul class="features-list">
+                            <li>Multiple power-ups: Multi-ball, Wide Paddle, Slow Ball, Extra Life</li>
+                            <li>Progressive level system with increasing difficulty</li>
+                            <li>Neon visual design with glowing effects</li>
+                            <li>Special unbreakable bricks in higher levels</li>
+                            <li>Life system with visual indicators</li>
+                            <li>Responsive paddle controls</li>
+                        </ul>
+                    </div>
+                    
+                    <a href="games/ball.html" class="cta-button">Play Brick Breaker</a>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <div class="footer-content">
+            <p>Created by Hoang Son Lai</p>
+            <ul class="footer-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="introduction.html">Introduction</a></li>
+                <li><a href="games.html">Games</a></li>
+                <li><a href="analysis.html">Analysis</a></li>
+                <li><a href="about.html">About Me</a></li>
+            </ul>
+            <p>&copy; 2025 World of Games and Data. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Check if analytics server is running
+        async function checkServerStatus() {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+            
+            try {
+                const response = await fetch('http://localhost:5000/health', {
+                    method: 'GET',
+                    mode: 'no-cors'
+                });
+                
+                statusIndicator.classList.add('running');
+                statusText.textContent = 'Server is running on port 5000';
+            } catch (error) {
+                statusIndicator.classList.remove('running');
+                statusText.textContent = 'Server not running - Start with instructions above';
+            }
+        }
+        
+        // ============================================
+        // HIGH-END VISUAL EFFECTS SCRIPTS
+        // ============================================
+
+        // 1. Scroll Reveal Animation (Intersection Observer)
+        const revealObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    entry.target.classList.add('element-visible');
+                    revealObserver.unobserve(entry.target); // Only animate once
+                }
+            });
+        }, {
+            threshold: 0.15 // Trigger when 15% of element is visible
+        });
+
+        // Target elements to animate
+        document.querySelectorAll('.page-header, .analytics-section, .game-card').forEach(el => {
+            revealObserver.observe(el);
+        });
+
+        // 2. High-end 3D Tilt Effect for Game Cards
+        const cards = document.querySelectorAll('.game-card');
+        
+        cards.forEach(card => {
+            card.addEventListener('mousemove', (e) => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                // Calculate percentage
+                const centerX = rect.width / 2;
+                const centerY = rect.height / 2;
+                
+                // Limit tilt angle (max 10 degrees)
+                const rotateX = ((y - centerY) / centerY) * -10;
+                const rotateY = ((x - centerX) / centerX) * 10;
+                
+                // Apply transform
+                card.style.transform = `perspective(1000px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale3d(1.02, 1.02, 1.02)`;
+                
+                // Adjust shimmer/reflection based on mouse
+                card.style.boxShadow = `${-rotateY}px ${rotateX}px 20px rgba(0,0,0,0.2)`;
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                // Reset transform
+                card.style.transform = 'perspective(1000px) rotateX(0) rotateY(0) scale3d(1, 1, 1)';
+                card.style.boxShadow = '0 10px 30px rgba(0, 0, 0, 0.1)';
+            });
+        });
+
+        // Check server status when page loads
+        document.addEventListener('DOMContentLoaded', checkServerStatus);
+    </script>
+</body>
+</html>

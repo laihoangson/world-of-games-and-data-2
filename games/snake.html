@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Snake Game</title>
+<style>
+  body { 
+    background: #000; 
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    height: 100vh; 
+    margin: 0; 
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    overflow: hidden;
+  }
+  canvas { 
+    background: #000; 
+    box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+    border: 2px solid #0f0;
+    border-radius: 8px;
+  }
+  #info { 
+    position: absolute; 
+    top: 20px; 
+    left: 20px; 
+    color: #0f0; 
+    font-family: 'Courier New', monospace; 
+    font-size: 18px;
+    text-shadow: 0 0 5px #0f0;
+  }
+  #controls {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    text-shadow: 0 0 5px #0f0;
+  }
+  #game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.8);
+    padding: 30px;
+    border-radius: 10px;
+    border: 2px solid #f00;
+    text-align: center;
+    color: white;
+    display: none;
+    box-shadow: 0 0 20px rgba(255, 0, 0, 0.5);
+    z-index: 10;
+  }
+  #game-over h2 {
+    color: #f00;
+    margin-top: 0;
+    font-size: 36px;
+    text-shadow: 0 0 10px #f00;
+  }
+  #restart-btn {
+    background: #f00;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 18px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s;
+  }
+  #restart-btn:hover {
+    background: #ff3333;
+    transform: scale(1.05);
+  }
+  #powerup-indicator {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 16px;
+    text-shadow: 0 0 5px #0f0;
+  }
+  #title {
+    position: absolute;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 24px;
+    text-shadow: 0 0 10px #0f0;
+    letter-spacing: 2px;
+  }
+  #author {
+    position: absolute;
+    bottom: 15px;
+    right: 15px;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 14px;
+    text-shadow: 0 0 5px #0f0;
+    opacity: 0.8;
+  }
+  #powerup-info {
+    position: absolute;
+    bottom: 110px;
+    left: 20px;
+    color: #0f0;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
+    text-shadow: 0 0 5px #0f0;
+    line-height: 1.4;
+  }
+</style>
+</head>
+<body>
+<div id="title">NEON SNAKE</div>
+<canvas id="game" width="600" height="400"></canvas>
+<div id="info">Score: 0 | Speed: 8</div>
+<div id="powerup-indicator">Power-ups: 0</div>
+<div id="controls">
+  <div>CONTROLS:</div>
+  <div>WASD or Arrow Keys - Move</div>
+  <div>P - Pause/Resume</div>
+  <div>R - Restart</div>
+</div>
+<div id="powerup-info">
+  <div>POWER-UPS:</div>
+  <div><span style="color:#0099ff">● SLOW</span> - Reduces speed</div>
+  <div><span style="color:#ff00ff">● DOUBLE</span> - Double points</div>
+</div>
+<div id="author">Created by Hoang Son Lai</div>
+<div id="game-over">
+  <h2>GAME OVER</h2>
+  <p id="final-score">Final Score: 0</p>
+  <p id="high-score">High Score: 0</p>
+  <button id="restart-btn">PLAY AGAIN</button>
+</div>
+<script>
+const CELL = 20;
+const GRID_W = 30;
+const GRID_H = 20;
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+// Giảm tốc độ cơ bản và tăng dần
+let fps = 8; // Giảm từ 10 xuống 8
+let maxFps = 15; // Giảm từ 25 xuống 15
+
+let snake, dir, pending, food, score, gameOver, paused;
+let powerUps = [];
+let powerUpActive = false;
+let powerUpType = null;
+let powerUpTimer = 0;
+let highScore = localStorage.getItem('snakeHighScore') || 0;
+let obstacles = [];
+let gameStarted = false;
+
+function reset() {
+  snake = [ {x:15, y:10}, {x:14, y:10}, {x:13, y:10} ];
+  dir = {x:1, y:0};
+  pending = {x:1, y:0};
+  food = randomFood();
+  score = 0;
+  gameOver = false;
+  paused = false;
+  fps = 8; // Reset về tốc độ chậm hơn
+  powerUps = [];
+  powerUpActive = false;
+  powerUpType = null;
+  powerUpTimer = 0;
+  obstacles = [];
+  gameStarted = false;
+  
+  // Giảm số lượng vật cản ban đầu
+  for (let i = 0; i < 3; i++) {
+    addObstacle();
+  }
+  
+  document.getElementById("game-over").style.display = "none";
+  updateInfo();
+}
+
+function randomFood() {
+  while (true) {
+    const x = Math.floor(Math.random()*GRID_W);
+    const y = Math.floor(Math.random()*GRID_H);
+    if (!snake.some(s => s.x===x && s.y===y) && 
+        !obstacles.some(o => o.x===x && o.y===y)) return {x,y};
+  }
+}
+
+function addObstacle() {
+  while (true) {
+    const x = Math.floor(Math.random()*GRID_W);
+    const y = Math.floor(Math.random()*GRID_H);
+    if (!snake.some(s => s.x===x && s.y===y) && 
+        (food.x !== x || food.y !== y) &&
+        !obstacles.some(o => o.x===x && o.y===y)) {
+      obstacles.push({x, y});
+      break;
+    }
+  }
+}
+
+function addPowerUp() {
+  // Giảm tần suất xuất hiện của power-up
+  if (powerUpActive || Math.random() > 0.015) return;
+  
+  while (true) {
+    const x = Math.floor(Math.random()*GRID_W);
+    const y = Math.floor(Math.random()*GRID_H);
+    if (!snake.some(s => s.x===x && s.y===y) && 
+        (food.x !== x || food.y !== y) &&
+        !obstacles.some(o => o.x===x && o.y===y) &&
+        !powerUps.some(p => p.x===x && p.y===y)) {
+      // Chỉ giữ lại power-up 'slow' và 'double'
+      const types = ['slow', 'double'];
+      const type = types[Math.floor(Math.random() * types.length)];
+      powerUps.push({x, y, type});
+      break;
+    }
+  }
+}
+
+function activatePowerUp(type) {
+  powerUpActive = true;
+  powerUpType = type;
+  powerUpTimer = 240; // 4 seconds at 60fps (giảm từ 5 giây)
+  
+  switch(type) {
+    case 'slow':
+      fps = Math.max(6, fps - 2); // Giảm ít hơn
+      break;
+    case 'double':
+      // Double points for a while
+      break;
+  }
+}
+
+function updatePowerUp() {
+  if (powerUpActive) {
+    powerUpTimer--;
+    if (powerUpTimer <= 0) {
+      powerUpActive = false;
+      powerUpType = null;
+      // Reset speed if it was modified
+      if (score > 0) {
+        fps = 8 + Math.floor(score / 8); // Tăng tốc độ chậm hơn
+      } else {
+        fps = 8;
+      }
+    }
+  }
+  
+  // Randomly add power-ups
+  addPowerUp();
+}
+
+function drawGrid() {
+  ctx.strokeStyle = "#111";
+  ctx.lineWidth = 0.5;
+  for (let x=0; x<canvas.width; x+=CELL) ctx.strokeRect(x,0,1,canvas.height);
+  for (let y=0; y<canvas.height; y+=CELL) ctx.strokeRect(0,y,canvas.width,1);
+}
+
+function drawRect(c, pos, isRounded = false) {
+  ctx.fillStyle = c;
+  if (isRounded) {
+    ctx.beginPath();
+    ctx.roundRect(pos.x*CELL, pos.y*CELL, CELL, CELL, 4);
+    ctx.fill();
+  } else {
+    ctx.fillRect(pos.x*CELL, pos.y*CELL, CELL, CELL);
+  }
+}
+
+function drawSnake() {
+  snake.forEach((s,i)=>{
+    if (i === 0) {
+      // Head with gradient
+      const gradient = ctx.createRadialGradient(
+        s.x*CELL + CELL/2, s.y*CELL + CELL/2, 0,
+        s.x*CELL + CELL/2, s.y*CELL + CELL/2, CELL/2
+      );
+      gradient.addColorStop(0, '#00ffff');
+      gradient.addColorStop(1, '#0077ff');
+      drawRect(gradient, s, true);
+      
+      // Eyes
+      ctx.fillStyle = 'white';
+      ctx.beginPath();
+      if (dir.x === 1) {
+        ctx.arc(s.x*CELL + CELL*0.7, s.y*CELL + CELL*0.3, 3, 0, Math.PI*2);
+        ctx.arc(s.x*CELL + CELL*0.7, s.y*CELL + CELL*0.7, 3, 0, Math.PI*2);
+      } else if (dir.x === -1) {
+        ctx.arc(s.x*CELL + CELL*0.3, s.y*CELL + CELL*0.3, 3, 0, Math.PI*2);
+        ctx.arc(s.x*CELL + CELL*0.3, s.y*CELL + CELL*0.7, 3, 0, Math.PI*2);
+      } else if (dir.y === 1) {
+        ctx.arc(s.x*CELL + CELL*0.3, s.y*CELL + CELL*0.7, 3, 0, Math.PI*2);
+        ctx.arc(s.x*CELL + CELL*0.7, s.y*CELL + CELL*0.7, 3, 0, Math.PI*2);
+      } else {
+        ctx.arc(s.x*CELL + CELL*0.3, s.y*CELL + CELL*0.3, 3, 0, Math.PI*2);
+        ctx.arc(s.x*CELL + CELL*0.7, s.y*CELL + CELL*0.3, 3, 0, Math.PI*2);
+      }
+      ctx.fill();
+    } else {
+      // Body with gradient
+      const gradient = ctx.createLinearGradient(
+        s.x*CELL, s.y*CELL,
+        s.x*CELL + CELL, s.y*CELL + CELL
+      );
+      gradient.addColorStop(0, '#00ff00');
+      gradient.addColorStop(1, '#009900');
+      drawRect(gradient, s, true);
+    }
+  });
+}
+
+function drawFood() {
+  // Draw apple-like food
+  const gradient = ctx.createRadialGradient(
+    food.x*CELL + CELL/2, food.y*CELL + CELL/2, 0,
+    food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2
+  );
+  gradient.addColorStop(0, '#ff3333');
+  gradient.addColorStop(1, '#cc0000');
+  
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(food.x*CELL + CELL/2, food.y*CELL + CELL/2, CELL/2 - 2, 0, Math.PI*2);
+  ctx.fill();
+  
+  // Stem
+  ctx.fillStyle = '#663300';
+  ctx.fillRect(food.x*CELL + CELL/2 - 2, food.y*CELL + 2, 4, 5);
+  
+  // Highlight
+  ctx.fillStyle = 'rgba(255,255,255,0.3)';
+  ctx.beginPath();
+  ctx.arc(food.x*CELL + CELL/3, food.y*CELL + CELL/3, 3, 0, Math.PI*2);
+  ctx.fill();
+}
+
+function drawObstacles() {
+  obstacles.forEach(obs => {
+    const gradient = ctx.createLinearGradient(
+      obs.x*CELL, obs.y*CELL,
+      obs.x*CELL + CELL, obs.y*CELL + CELL
+    );
+    gradient.addColorStop(0, '#666');
+    gradient.addColorStop(1, '#333');
+    drawRect(gradient, obs, true);
+    
+    // Crack effect
+    ctx.strokeStyle = '#222';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(obs.x*CELL + 5, obs.y*CELL + 5);
+    ctx.lineTo(obs.x*CELL + CELL - 5, obs.y*CELL + CELL - 5);
+    ctx.stroke();
+  });
+}
+
+function drawPowerUps() {
+  powerUps.forEach(p => {
+    let color;
+    switch(p.type) {
+      case 'slow': color = '#0099ff'; break;
+      case 'double': color = '#ff00ff'; break;
+    }
+    
+    // Pulsing effect
+    const pulse = Math.sin(Date.now() / 200) * 2;
+    const size = CELL/2 + pulse;
+    
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(p.x*CELL + CELL/2, p.y*CELL + CELL/2, size, 0, Math.PI*2);
+    ctx.fill();
+    
+    // Glow effect
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+}
+
+function updateInfo() {
+  document.getElementById("info").textContent = `Score: ${score} | Speed: ${fps}`;
+  document.getElementById("powerup-indicator").textContent = 
+    powerUpActive ? `Power-up: ${powerUpType} (${Math.ceil(powerUpTimer/60)}s)` : "Power-ups: 0";
+}
+
+function update() {
+  if (paused || gameOver || !gameStarted) return;
+
+  if (!(pending.x === -dir.x && pending.y === -dir.y)) dir = pending;
+
+  const head = snake[0];
+  const newHead = {
+    x: (head.x + dir.x + GRID_W) % GRID_W,
+    y: (head.y + dir.y + GRID_H) % GRID_H
+  };
+
+  // Check for collision with obstacles
+  if (obstacles.some(o => o.x === newHead.x && o.y === newHead.y)) {
+    gameOver = true;
+    endGame();
+    return;
+  }
+
+  // Check for collision with self
+  if (snake.some(s => s.x===newHead.x && s.y===newHead.y)) {
+    gameOver = true;
+    endGame();
+    return;
+  }
+
+  snake.unshift(newHead);
+
+  // Check for power-up collection
+  const powerUpIndex = powerUps.findIndex(p => p.x === newHead.x && p.y === newHead.y);
+  if (powerUpIndex !== -1) {
+    activatePowerUp(powerUps[powerUpIndex].type);
+    powerUps.splice(powerUpIndex, 1);
+  }
+
+  if (newHead.x===food.x && newHead.y===food.y) {
+    let points = 1;
+    if (powerUpActive && powerUpType === 'double') points = 2;
+    
+    score += points;
+    
+    // Tăng tốc độ chậm hơn - mỗi 8 điểm mới tăng 1 fps
+    if (score % 8 === 0 && !powerUpActive) {
+      fps = Math.min(maxFps, fps + 1);
+    }
+    
+    food = randomFood();
+    
+    // Thêm vật cản ít thường xuyên hơn
+    if (score % 10 === 0 && obstacles.length < 12) {
+      addObstacle();
+    }
+  } else {
+    snake.pop();
+  }
+
+  updatePowerUp();
+  updateInfo();
+}
+
+function endGame() {
+  if (score > highScore) {
+    highScore = score;
+    localStorage.setItem('snakeHighScore', highScore);
+  }
+  
+  document.getElementById("final-score").textContent = `Final Score: ${score}`;
+  document.getElementById("high-score").textContent = `High Score: ${highScore}`;
+  document.getElementById("game-over").style.display = "block";
+}
+
+function draw() {
+  // Background with gradient
+  const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+  gradient.addColorStop(0, '#001122');
+  gradient.addColorStop(1, '#003344');
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  
+  drawGrid();
+  drawObstacles();
+  drawPowerUps();
+  drawFood();
+  drawSnake();
+
+  if (!gameStarted) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "#0f0";
+    ctx.font = "36px 'Courier New'";
+    ctx.textAlign = "center";
+    ctx.fillText("NEON SNAKE", canvas.width/2, canvas.height/2 - 40);
+    
+    ctx.fillStyle = "#0ff";
+    ctx.font = "20px 'Courier New'";
+    ctx.fillText("Press any arrow key to start", canvas.width/2, canvas.height/2 + 20);
+    
+    ctx.fillStyle = "#ff0";
+    ctx.font = "16px 'Courier New'";
+    ctx.fillText(`High Score: ${highScore}`, canvas.width/2, canvas.height/2 + 60);
+  }
+
+  if (paused) {
+    ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    ctx.fillStyle = "yellow";
+    ctx.font = "40px Arial";
+    ctx.textAlign = "center";
+    ctx.fillText("PAUSED", canvas.width/2, canvas.height/2);
+  }
+
+  if (gameOver) {
+    // Game over screen is handled by the HTML element
+  }
+}
+
+let accumulator = 0;
+let last = performance.now();
+
+function loop(now) {
+  const delta = (now-last)/1000;
+  last = now;
+  accumulator += delta;
+
+  while (accumulator > 1/fps) {
+    update();
+    accumulator -= 1/fps;
+  }
+
+  draw();
+  requestAnimationFrame(loop);
+}
+
+window.addEventListener("keydown", e=>{
+  if (!gameStarted && (e.key.includes("Arrow") || ['w','a','s','d'].includes(e.key))) {
+    gameStarted = true;
+    return;
+  }
+  
+  if (e.key === "ArrowLeft" || e.key === "a") pending = {x:-1, y:0};
+  if (e.key === "ArrowRight" || e.key === "d") pending = {x:1, y:0};
+  if (e.key === "ArrowUp" || e.key === "w") pending = {x:0, y:-1};
+  if (e.key === "ArrowDown" || e.key === "s") pending = {x:0, y:1};
+
+  if (e.key === "p") paused = !paused;
+  if (e.key === "r" && gameOver) reset();
+});
+
+document.getElementById("restart-btn").addEventListener("click", reset);
+
+reset();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

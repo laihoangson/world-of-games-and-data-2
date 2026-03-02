@@ -1,0 +1,1260 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Piano Web + Cat Game</title>
+<style>
+  :root{
+    --white:#ffffff;
+    --black:#000000;
+    --gray:#f5f5f7;
+    --accent:#ff4d4d;
+    --kbd:#111;
+    --primary: #6c63ff;
+    --primary-dark: #5a52d5;
+    --text-dark: #333;
+    --text-light: #666;
+    --shadow: 0 4px 20px rgba(0,0,0,0.08);
+    --shadow-hover: 0 8px 30px rgba(0,0,0,0.12);
+    --gradient-bg: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  }
+  
+  * {
+    box-sizing: border-box;
+  }
+  
+  body{
+    margin:0;
+    font-family: 'Segoe UI', system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--gradient-bg);
+    display:flex;
+    flex-direction:column;
+    align-items:stretch;
+    min-height:100vh;
+    color: var(--text-dark);
+    line-height: 1.6;
+  }
+  
+  .top{
+    padding: 16px 24px;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(15px);
+    box-shadow: var(--shadow);
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-radius: 0 0 20px 20px;
+    margin: 0 20px;
+  }
+  
+  h1{
+    margin:0;
+    font-size: 24px;
+    font-weight: 800;
+    background: linear-gradient(90deg, var(--primary), #ff6b6b);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    letter-spacing: -0.5px;
+  }
+  
+  .controls{
+    display:flex;
+    gap: 15px;
+    align-items:center;
+  }
+  
+  .btn{
+    padding: 10px 18px;
+    border-radius: 12px;
+    border: none;
+    background: var(--primary);
+    color: white;
+    cursor:pointer;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 15px rgba(108, 99, 255, 0.4);
+    font-size: 14px;
+  }
+  
+  .btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-3px);
+    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
+  }
+  
+  .btn:active{
+    transform: translateY(-1px);
+  }
+  
+  .container{
+    padding: 30px 24px;
+    display:flex;
+    flex-direction:column;
+    gap: 25px;
+    align-items:center;
+    flex: 1;
+  }
+  
+  .piano{
+    position:relative;
+    width: 800px;
+    max-width:96%;
+    height:320px;
+    user-select:none;
+    box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+    background: linear-gradient(to bottom, #f9f9f9, #f0f0f0);
+    border-radius: 16px;
+    padding: 15px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    border: 1px solid rgba(255,255,255,0.3);
+  }
+  
+  .piano:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.25);
+  }
+
+  /* white keys layout */
+  .white-keys{
+    display:flex;
+    height:100%;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: inset 0 2px 5px rgba(0,0,0,0.1);
+  }
+  
+  .white{
+    position:relative;
+    flex:0 0 calc(100% / 10);
+    margin-right:0;
+    border-radius: 0 0 8px 8px;
+    box-sizing:border-box;
+    border: 1px solid #ddd;
+    border-right: none;
+    background: linear-gradient(to bottom, var(--white) 0%, #f5f5f5 100%);
+    height:100%;
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    padding-bottom: 25px;
+    transition: all .1s ease;
+    cursor: pointer;
+    box-shadow: inset 0 -5px 10px rgba(0,0,0,0.05);
+  }
+  
+  .white:last-child {
+    border-right: 1px solid #ddd;
+  }
+  
+  .white:hover {
+    background: linear-gradient(to bottom, #fefefe, #f8f8f8);
+  }
+  
+  .white.active{ 
+    background: linear-gradient(to bottom, var(--accent), #ff3333);
+    box-shadow: inset 0 0 15px rgba(0,0,0,0.2);
+  }
+
+  .white .label{
+    font-weight:800;
+    color:#111;
+    font-size:16px;
+    background:transparent;
+    text-shadow: 0 1px 3px rgba(255,255,255,0.9);
+  }
+
+  /* black keys */
+  .black{
+    position:absolute;
+    width:calc(100% * 40 / 800);
+    height:62%;
+    background: linear-gradient(145deg, #222, #000);
+    border-radius: 0 0 6px 6px;
+    box-shadow: 0 8px 15px rgba(0,0,0,0.5);
+    color:var(--white);
+    display:flex;
+    align-items:flex-end;
+    justify-content:center;
+    padding-bottom: 25px;
+    z-index:2;
+    transition: all .1s ease;
+    cursor:pointer;
+  }
+  
+  .black:hover {
+    background: linear-gradient(145deg, #333, #111);
+  }
+  
+  .black.active{ 
+    background: linear-gradient(to bottom, var(--accent), #ff3333);
+    transform:translateY(3px); 
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+  }
+
+  .legend{
+    display:flex;
+    gap: 15px;
+    flex-wrap:wrap;
+    margin-top: 15px;
+    justify-content: center;
+    max-width: 800px;
+  }
+  
+  .note-tag{
+    font-size:14px;
+    color: white;
+    background: rgba(255,255,255,0.15);
+    padding: 10px 15px;
+    border-radius: 25px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .note-tag:hover {
+    background: rgba(255,255,255,0.25);
+    transform: translateY(-2px);
+  }
+  
+  .volume{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    font-weight: 600;
+    color: var(--text-dark);
+  }
+  
+  #vol {
+    accent-color: var(--primary);
+    width: 100px;
+  }
+  
+  .shortcut{
+    font-size:13px;
+    color:#333;
+  }
+  
+  /* Cat Game Styles */
+  .game-section {
+    margin-top: 40px;
+    padding: 35px;
+    border-top: 1px solid rgba(255,255,255,0.2);
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(255,255,255,0.15);
+    border-radius: 25px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+    max-width: 800px;
+    margin-left: auto;
+    margin-right: auto;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  
+  .game-title {
+    font-size: 32px;
+    margin-bottom: 20px;
+    color: white;
+    font-weight: 800;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+  }
+  
+  #gameContainer {
+    position: relative;
+    width: 600px;
+    height: 220px;
+    background: linear-gradient(to bottom, #87CEEB, #E0F7FF);
+    border: 2px solid rgba(255,255,255,0.3);
+    overflow: hidden;
+    margin-bottom: 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  }
+  
+  #cat {
+    position: absolute;
+    width: 50px;
+    height: 50px;
+    bottom: 0;
+    left: 50px;
+    z-index: 10;
+    transition: bottom 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  }
+  
+  .cat-body {
+    position: absolute;
+    width: 40px;
+    height: 25px;
+    background: linear-gradient(45deg, #FF9966, #FF5E62);
+    border-radius: 20px 20px 10px 10px;
+    bottom: 0;
+    left: 5px;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.2);
+  }
+  
+  .cat-head {
+    position: absolute;
+    width: 35px;
+    height: 30px;
+    background: linear-gradient(45deg, #FF9966, #FF5E62);
+    border-radius: 20px 20px 15px 15px;
+    bottom: 20px;
+    left: 7px;
+    z-index: 2;
+  }
+  
+  .cat-ear {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-bottom: 12px solid #FF9966;
+    z-index: 1;
+  }
+  
+  .cat-ear-left {
+    bottom: 45px;
+    left: 10px;
+    transform: rotate(-5deg);
+  }
+  
+  .cat-ear-right {
+    bottom: 45px;
+    left: 25px;
+    transform: rotate(5deg);
+  }
+  
+  .cat-tail {
+    position: absolute;
+    width: 20px;
+    height: 6px;
+    background: linear-gradient(to right, #FF9966, #FF5E62);
+    border-radius: 3px;
+    bottom: 5px;
+    left: -15px;
+    transform: rotate(-15deg);
+    transition: transform 0.2s;
+  }
+  
+  .cat-eye {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+    background: #222;
+    border-radius: 50%;
+    bottom: 40px;
+    animation: blink 3s infinite;
+  }
+  
+  .cat-eye-left {
+    left: 15px;
+  }
+  
+  .cat-eye-right {
+    left: 27px;
+  }
+  
+  .cat-nose {
+    position: absolute;
+    width: 6px;
+    height: 4px;
+    background: #FF69B4;
+    border-radius: 50%;
+    bottom: 35px;
+    left: 21px;
+  }
+  
+  .cat-whisker {
+    position: absolute;
+    height: 1px;
+    background: #333;
+    width: 12px;
+  }
+  
+  .whisker-left-1 {
+    bottom: 38px;
+    left: 8px;
+    transform: rotate(-10deg);
+  }
+  
+  .whisker-left-2 {
+    bottom: 36px;
+    left: 8px;
+    transform: rotate(-5deg);
+  }
+  
+  .whisker-right-1 {
+    bottom: 38px;
+    left: 34px;
+    transform: rotate(10deg);
+  }
+  
+  .whisker-right-2 {
+    bottom: 36px;
+    left: 34px;
+    transform: rotate(5deg);
+  }
+  
+  @keyframes blink {
+    0%, 95%, 100% { transform: scaleY(1); }
+    97% { transform: scaleY(0.1); }
+  }
+  
+  .cat-jump .cat-tail {
+    transform: rotate(10deg);
+  }
+  
+  .cactus {
+    position: absolute;
+    width: 20px;
+    background: linear-gradient(to bottom, #2ecc71, #27ae60);
+    bottom: 0;
+    border-radius: 10px 10px 0 0;
+    z-index: 5;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  
+  .cloud {
+    position: absolute;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.8;
+  }
+  
+  .ground {
+    position: absolute;
+    width: 100%;
+    height: 10px;
+    background: linear-gradient(to bottom, #8B4513, #654321);
+    bottom: 0;
+    z-index: 1;
+  }
+  
+  .ground-line {
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: #333;
+    bottom: 10px;
+    opacity: 0.3;
+  }
+
+  .key-btn, .song-btn, .stop-btn {
+    display: inline-block;
+    padding: 4px 8px;
+    margin: 0 3px;
+    background: rgba(255,255,255,0.2);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    font-weight: 600;
+    color: white;
+  }
+
+  .key-btn:hover, .song-btn:hover, .stop-btn:hover {
+    background: rgba(255,255,255,0.3);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+  }
+
+  .key-btn:active, .song-btn:active, .stop-btn:active {
+    transform: translateY(0);
+    background: rgba(255,255,255,0.4);
+  }
+
+  .song-btn {
+    color: #ffeb3b;
+  }
+
+  .stop-btn {
+    color: #ff5252;
+  }
+  
+  #score {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: white;
+    text-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+  }
+  
+  #highScore {
+    font-size: 18px;
+    color: rgba(255,255,255,0.8);
+    margin-bottom: 10px;
+  }
+  
+  #startBtn {
+    padding: 14px 28px;
+    font-size: 18px;
+    background: linear-gradient(45deg, var(--primary), var(--primary-dark));
+    color: white;
+    border: none;
+    border-radius: 30px;
+    cursor: pointer;
+    margin-bottom: 10px;
+    box-shadow: 0 6px 20px rgba(108, 99, 255, 0.5);
+    transition: all 0.3s;
+    font-weight: 700;
+  }
+  
+  #startBtn:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(108, 99, 255, 0.6);
+  }
+  
+  #startBtn:active {
+    transform: translateY(-1px);
+  }
+  
+  #gameOver {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 36px;
+    font-weight: bold;
+    color: #ff4444;
+    text-shadow: 3px 3px 6px rgba(0,0,0,0.5);
+    display: none;
+    z-index: 20;
+  }
+  
+  .instructions {
+    margin-top: 10px;
+    font-size: 15px;
+    color: rgba(255,255,255,0.9);
+    text-align: center;
+    background: rgba(255,255,255,0.15);
+    padding: 10px 18px;
+    border-radius: 25px;
+    max-width: 400px;
+    backdrop-filter: blur(5px);
+  }
+
+  footer{
+    margin-top: 40px;
+    padding: 20px;
+    font-size: 14px;
+    color: rgba(255,255,255,0.7);
+    background: rgba(255,255,255,0.1);
+    text-align: center;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(5px);
+  }
+  
+  .creator {
+    font-weight: 700;
+    color: white;
+  }
+
+  @media (max-width:600px){
+    .piano{height:240px}
+    .white .label{font-size:14px}
+    #gameContainer {
+      width: 90%;
+      height: 180px;
+    }
+    #cat {
+      width: 40px;
+      height: 40px;
+    }
+    .cactus {
+      width: 15px;
+    }
+    .legend {
+      gap: 10px;
+    }
+    .note-tag {
+      font-size: 12px;
+      padding: 8px 12px;
+    }
+    .top {
+      padding: 12px 16px;
+      margin: 0 10px;
+    }
+    h1 {
+      font-size: 20px;
+    }
+    .container {
+      padding: 20px 16px;
+    }
+    .game-section {
+      padding: 25px 16px;
+    }
+    .game-title {
+      font-size: 26px;
+    }
+  }
+</style>
+</head>
+<body>
+
+  <div class="top">
+    <h1>🎹 Piano Web + 🐱 Cat Game</h1>
+    <div class="controls">
+      <div class="volume">Volume: <input id="vol" type="range" min="0" max="1" step="0.01" value="0.6" /></div>
+      <button class="btn" id="help">Help</button>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="piano" id="piano" tabindex="0">
+      <div class="white-keys" id="whiteKeys">
+        <!-- white keys will be injected by JS -->
+      </div>
+
+      <!-- black keys will be absolute positioned by JS -->
+      <div id="blackKeysContainer"></div>
+    </div>
+
+    <div class="legend">
+      <div class="note-tag">White keys: <span class="key-btn">a</span> <span class="key-btn">s</span> <span class="key-btn">d</span> <span class="key-btn">f</span> <span class="key-btn">g</span> <span class="key-btn">h</span> <span class="key-btn">j</span> <span class="key-btn">k</span> <span class="key-btn">l</span> <span class="key-btn">;</span></div>
+      <div class="note-tag">Black keys: <span class="key-btn">w</span> <span class="key-btn">e</span> <span class="key-btn">t</span> <span class="key-btn">y</span> <span class="key-btn">u</span> <span class="key-btn">o</span> <span class="key-btn">p</span></div>
+      <div class="note-tag">Songs: <span class="song-btn" data-song="happy_birthday">Z = Happy Birthday</span> | <span class="stop-btn">X = Stop</span></div>
+      <div class="note-tag"><span class="song-btn" data-song="jingle_bells">C = Jingle Bells</span> | <span class="stop-btn">V = Stop</span></div>
+      <div class="note-tag"><span class="song-btn" data-song="twinkle">B = Twinkle</span> | <span class="stop-btn">N = Stop</span></div>
+      <div class="note-tag"><span class="song-btn" data-song="fur_elise">M = Fur Elise</span> | <span class="stop-btn">, = Stop</span></div>
+      <div class="note-tag"><span class="song-btn" data-song="ode_to_joy">. = Ode to Joy</span> | <span class="stop-btn">/ = Stop</span></div>
+    </div>
+  </div>
+
+  <!-- Cat Game Section -->
+  <div class="game-section">
+    <div class="game-title">🐱 Jumping Cat Game</div>
+    <div id="score">Score: 0</div>
+    <div id="highScore">High Score: 0</div>
+    <button id="startBtn">Play Game</button>
+    <div id="gameContainer">
+      <div id="cat">
+        <div class="cat-tail"></div>
+        <div class="cat-body"></div>
+        <div class="cat-head"></div>
+        <div class="cat-ear cat-ear-left"></div>
+        <div class="cat-ear cat-ear-right"></div>
+        <div class="cat-eye cat-eye-left"></div>
+        <div class="cat-eye cat-eye-right"></div>
+        <div class="cat-nose"></div>
+        <div class="cat-whisker whisker-left-1"></div>
+        <div class="cat-whisker whisker-left-2"></div>
+        <div class="cat-whisker whisker-right-1"></div>
+        <div class="cat-whisker whisker-right-2"></div>
+      </div>
+      <div class="ground"></div>
+      <div class="ground-line"></div>
+      <div id="gameOver">Game Over!</div>
+    </div>
+    <div class="instructions">Press SPACE to jump and avoid the cacti!</div>
+  </div>
+  
+  <footer>
+    <p>Created by <span class="creator">Hoang Son Lai</span></p>
+  </footer>
+
+<script>
+// ======== CAT GAME CODE - IMPROVED ANIMATION ========
+const cat = document.getElementById('cat');
+const gameContainer = document.getElementById('gameContainer');
+const scoreDisplay = document.getElementById('score');
+const highScoreDisplay = document.getElementById('highScore');
+const startBtn = document.getElementById('startBtn');
+const gameOverDisplay = document.getElementById('gameOver');
+
+let isJumping = false;
+let isGameRunning = false;
+let score = 0;
+let highScore = localStorage.getItem('catHighScore') || 0;
+let gameSpeed = 5;
+let cactusInterval;
+let scoreInterval;
+let cloudInterval;
+
+// Initialize high score display
+highScoreDisplay.textContent = 'High Score: ' + highScore;
+
+function startGame() {
+  if (isGameRunning) return;
+  
+  // Reset game state
+  isGameRunning = true;
+  score = 0;
+  gameSpeed = 5;
+  isJumping = false;
+  cat.style.bottom = '0';
+  cat.classList.remove('cat-jump');
+  gameOverDisplay.style.display = 'none';
+  scoreDisplay.textContent = 'Score: 0';
+  
+  // Remove existing cacti and clouds
+  document.querySelectorAll('.cactus, .cloud').forEach(el => el.remove());
+  
+  // Start game loops
+  cactusInterval = setInterval(createCactus, 1500);
+  cloudInterval = setInterval(createCloud, 3000);
+  scoreInterval = setInterval(updateScore, 100);
+  
+  // Focus the game container for keyboard events
+  gameContainer.focus();
+}
+
+function jump() {
+  if (!isGameRunning || isJumping) return;
+  
+  isJumping = true;
+  cat.classList.add('cat-jump');
+  
+  // Smooth jump animation using CSS transition
+  cat.style.bottom = '120px';
+  
+  setTimeout(() => {
+    cat.style.bottom = '0';
+    setTimeout(() => {
+      cat.classList.remove('cat-jump');
+      isJumping = false;
+    }, 400);
+  }, 300);
+}
+
+function createCactus() {
+  if (!isGameRunning) return;
+  
+  const cactus = document.createElement('div');
+  cactus.classList.add('cactus');
+  
+  // Random cactus height (30px to 70px)
+  const height = 30 + Math.random() * 40;
+  cactus.style.height = height + 'px';
+  cactus.style.left = '600px';
+  
+  gameContainer.appendChild(cactus);
+  
+  let cactusPosition = 600;
+  const moveCactus = setInterval(() => {
+    if (!isGameRunning) {
+      clearInterval(moveCactus);
+      cactus.remove();
+      return;
+    }
+    
+    cactusPosition -= gameSpeed;
+    cactus.style.left = cactusPosition + 'px';
+    
+    // Improved collision detection
+    const catRect = cat.getBoundingClientRect();
+    const cactusRect = cactus.getBoundingClientRect();
+    
+    // More precise collision detection
+    const collision = !(
+      catRect.right < cactusRect.left + 10 ||
+      catRect.left + 10 > cactusRect.right ||
+      catRect.bottom < cactusRect.top + 5 ||
+      catRect.top + 5 > cactusRect.bottom
+    );
+    
+    if (collision) {
+      gameOver();
+      clearInterval(moveCactus);
+      return;
+    }
+    
+    // Remove cactus when off screen
+    if (cactusPosition < -20) {
+      clearInterval(moveCactus);
+      cactus.remove();
+    }
+  }, 20);
+}
+
+function createCloud() {
+  if (!isGameRunning) return;
+  
+  const cloud = document.createElement('div');
+  cloud.classList.add('cloud');
+  const size = 30 + Math.random() * 30;
+  cloud.style.width = size + 'px';
+  cloud.style.height = size / 1.5 + 'px';
+  cloud.style.top = (20 + Math.random() * 60) + 'px';
+  cloud.style.left = '600px';
+  gameContainer.appendChild(cloud);
+  
+  let cloudPosition = 600;
+  const moveCloud = setInterval(() => {
+    if (!isGameRunning) {
+      clearInterval(moveCloud);
+      cloud.remove();
+      return;
+    }
+    
+    cloudPosition -= gameSpeed * 0.5;
+    cloud.style.left = cloudPosition + 'px';
+    
+    if (cloudPosition < -50) {
+      clearInterval(moveCloud);
+      cloud.remove();
+    }
+  }, 20);
+}
+
+function updateScore() {
+  if (!isGameRunning) return;
+  
+  score += 1;
+  scoreDisplay.textContent = 'Score: ' + score;
+  
+  // Increase speed every 100 points
+  if (score % 100 === 0) {
+    gameSpeed += 0.5;
+  }
+  
+  // Update high score
+  if (score > highScore) {
+    highScore = score;
+    highScoreDisplay.textContent = 'High Score: ' + highScore;
+    localStorage.setItem('catHighScore', highScore);
+  }
+}
+
+function gameOver() {
+  isGameRunning = false;
+  gameOverDisplay.style.display = 'block';
+  clearInterval(cactusInterval);
+  clearInterval(cloudInterval);
+  clearInterval(scoreInterval);
+}
+
+// Event listeners for cat game
+startBtn.addEventListener('click', startGame);
+
+document.addEventListener('keydown', (e) => {
+  if (e.code === 'Space' && isGameRunning) {
+    e.preventDefault(); // Prevent space from scrolling the page
+    jump();
+  }
+});
+
+// Also allow clicking to jump for mobile/touch devices
+gameContainer.addEventListener('click', () => {
+  if (isGameRunning) {
+    jump();
+  } else {
+    startGame();
+  }
+});
+
+// ======== PIANO GAME CODE (UNCHANGED) ========
+const AudioContext = window.AudioContext || window.webkitAudioContext;
+const ctx = new AudioContext();
+
+let masterGain = ctx.createGain();
+masterGain.gain.value = 0.6;
+masterGain.connect(ctx.destination);
+
+const setVolume = v => masterGain.gain.value = v;
+document.getElementById('vol').addEventListener('input', e => setVolume(Number(e.target.value)));
+
+const noteFrequencies = {
+  'C4':261.63, 'C#4':277.18, 'D4':293.66, 'D#4':311.13,
+  'E4':329.63, 'F4':349.23, 'F#4':369.99, 'G4':392.00,
+  'G#4':415.30, 'A4':440.00, 'A#4':466.16, 'B4':493.88,
+  'C5':523.25, 'C#5':554.37, 'D5':587.33, 'D#5':622.25,
+  'E5':659.25, 'A5':880.00
+};
+
+const whiteKeysDef = [
+  {note:'C4', key:'a'},
+  {note:'D4', key:'s'},
+  {note:'E4', key:'d'},
+  {note:'F4', key:'f'},
+  {note:'G4', key:'g'},
+  {note:'A4', key:'h'},
+  {note:'B4', key:'j'},
+  {note:'C5', key:'k'},
+  {note:'D5', key:'l'},
+  {note:'E5', key:';'}
+];
+
+const blackKeysDef = [
+  {note:'C#4', key:'w', leftIndex:0},
+  {note:'D#4', key:'e', leftIndex:1},
+  {note:'F#4', key:'t', leftIndex:3},
+  {note:'G#4', key:'y', leftIndex:4},
+  {note:'A#4', key:'u', leftIndex:5},
+  {note:'C#5', key:'o', leftIndex:7},
+  {note:'D#5', key:'p', leftIndex:8}
+];
+
+const activeOscillators = {};
+
+function playNote(note, velocity=1, type='sine'){
+  if (!noteFrequencies[note]) return;
+  const osc = ctx.createOscillator();
+  const gain = ctx.createGain();
+  osc.type = type;
+  osc.frequency.value = noteFrequencies[note];
+  gain.gain.value = 0;
+  osc.connect(gain);
+  gain.connect(masterGain);
+  osc.start();
+
+  const now = ctx.currentTime;
+  gain.gain.cancelScheduledValues(now);
+  gain.gain.setValueAtTime(0, now);
+  gain.gain.linearRampToValueAtTime(0.9 * velocity, now + 0.01);
+
+  if (!activeOscillators[note]) activeOscillators[note] = [];
+  activeOscillators[note].push({osc, gain});
+}
+
+function stopNote(note){
+  const list = activeOscillators[note];
+  if (!list || list.length===0) return;
+  list.forEach(({osc,gain})=>{
+    const now = ctx.currentTime;
+    gain.gain.cancelScheduledValues(now);
+    gain.gain.setValueAtTime(gain.gain.value, now);
+    gain.gain.linearRampToValueAtTime(0, now + 0.08);
+    osc.stop(now + 0.09);
+    setTimeout(()=>{ try{gain.disconnect(); osc.disconnect();}catch(e){} }, 150);
+  });
+  activeOscillators[note] = [];
+}
+
+const whiteKeysContainer = document.getElementById('whiteKeys');
+const blackKeysContainer = document.getElementById('blackKeysContainer');
+
+const whiteKeyElems = [];
+const blackKeyElems = [];
+
+whiteKeysDef.forEach((k, idx) => {
+  const div = document.createElement('div');
+  div.className = 'white';
+  div.dataset.note = k.note;
+  div.dataset.key = k.key;
+  div.innerHTML = `<div class="label">${k.key.toUpperCase()}</div>`;
+  whiteKeysContainer.appendChild(div);
+  whiteKeyElems.push(div);
+
+  div.addEventListener('mousedown', e => {
+    ensureAudioStarted();
+    div.classList.add('active');
+    playNote(k.note);
+  });
+  div.addEventListener('mouseup', e => {
+    div.classList.remove('active');
+    stopNote(k.note);
+  });
+  div.addEventListener('mouseleave', e => {
+    if (e.buttons === 1){
+      div.classList.remove('active');
+      stopNote(k.note);
+    }
+  });
+});
+
+blackKeysDef.forEach((k)=>{
+  const div = document.createElement('div');
+  div.className = 'black';
+  div.dataset.note = k.note;
+  div.dataset.key = k.key;
+  div.innerHTML = `<div class="label">${k.key.toUpperCase()}</div>`;
+  blackKeysContainer.appendChild(div);
+  blackKeyElems.push({elem:div, leftIndex:k.leftIndex});
+  
+  div.addEventListener('mousedown', e => {
+    ensureAudioStarted();
+    div.classList.add('active');
+    playNote(k.note);
+  });
+  div.addEventListener('mouseup', e => {
+    div.classList.remove('active');
+    stopNote(k.note);
+  });
+  div.addEventListener('mouseleave', e => {
+    if (e.buttons === 1){
+      div.classList.remove('active');
+      stopNote(k.note);
+    }
+  });
+});
+
+function positionBlackKeys(){
+  const whiteRects = whiteKeyElems.map(w => w.getBoundingClientRect());
+  const pianoRect = document.getElementById('piano').getBoundingClientRect();
+
+  blackKeyElems.forEach(item => {
+    const leftIdx = item.leftIndex;
+    if (whiteRects[leftIdx]){
+      const leftRect = whiteRects[leftIdx];
+      const nextRect = whiteRects[leftIdx+1] || leftRect;
+      const center = (leftRect.right + nextRect.left) / 2;
+      const width = pianoRect.width * 0.05;
+      item.elem.style.width = Math.max(32, Math.min(56, width)) + 'px';
+      item.elem.style.left = (center - pianoRect.left - (parseFloat(item.elem.style.width)/2)) + 'px';
+      item.elem.style.top = (pianoRect.top - pianoRect.top + 8) + 'px';
+      item.elem.style.height = (pianoRect.height * 0.6) + 'px';
+    }
+  });
+}
+
+setTimeout(positionBlackKeys, 50);
+window.addEventListener('resize', ()=> setTimeout(positionBlackKeys, 50));
+
+const activeKeysSet = new Set();
+const keyToNote = {};
+whiteKeysDef.forEach(k => keyToNote[k.key] = k.note);
+blackKeysDef.forEach(k => keyToNote[k.key] = k.note);
+
+function highlightKeyByChar(ch, on){
+  ch = ch.toLowerCase();
+  whiteKeyElems.forEach(el => {
+    if (el.dataset.key.toLowerCase() === ch){
+      if (on) el.classList.add('active'); else el.classList.remove('active');
+    }
+  });
+  blackKeyElems.forEach(o => {
+    if (o.elem.dataset.key.toLowerCase() === ch){
+      if (on) o.elem.classList.add('active'); else o.elem.classList.remove('active');
+    }
+  });
+}
+
+function ensureAudioStarted(){
+  if (ctx.state === 'suspended'){
+    ctx.resume();
+  }
+}
+
+let autoPlaying = false;
+let stopAutoPlay = false;
+
+function playSongArray(songArray){
+  stopAutoPlay = false;
+  autoPlaying = true;
+  (async ()=>{
+    for (const [note, duration] of songArray){
+      if (stopAutoPlay) break;
+      const mapping = [...whiteKeysDef, ...blackKeysDef].find(k=>k.note===note);
+      if (mapping){
+        highlightKeyByChar(mapping.key, true);
+      }
+      ensureAudioStarted();
+      playNote(note);
+      await new Promise(r => setTimeout(r, Math.max(20, Math.round(duration * 1000))));
+      stopNote(note);
+      if (mapping){
+        highlightKeyByChar(mapping.key, false);
+      }
+      await new Promise(r => setTimeout(r, 10));
+    }
+    autoPlaying = false;
+    stopAutoPlay = false;
+  })();
+}
+
+document.addEventListener('keydown', (e)=>{
+  const ch = e.key;
+  const lower = ch.toLowerCase();
+
+  if (!autoPlaying){
+    if (lower === 'z'){ playSongArray(happy_birthday); return; }
+    if (lower === 'c'){ playSongArray(jingle_bells); return; }
+    if (lower === 'b'){ playSongArray(twinkle_simple); return; }
+    if (lower === 'm'){ playSongArray(fur_elise_easy); return; }
+    if (ch === '.') { playSongArray(ode_to_joy); return; }
+  } else {
+    if (lower === 'x' || lower === 'v' || lower === 'n' || ch === ',' || ch === '/' ){
+      stopAutoPlay = true;
+      autoPlaying = false;
+      return;
+    }
+  }
+
+  if (keyToNote[lower] && !activeKeysSet.has(lower)){
+    ensureAudioStarted();
+    activeKeysSet.add(lower);
+    const note = keyToNote[lower];
+    highlightKeyByChar(lower, true);
+    playNote(note);
+  }
+});
+
+document.addEventListener('keyup', (e)=>{
+  const lower = e.key.toLowerCase();
+  if (activeKeysSet.has(lower)){
+    const note = keyToNote[lower];
+    stopNote(note);
+    highlightKeyByChar(lower, false);
+    activeKeysSet.delete(lower);
+  }
+});
+
+document.getElementById('piano').addEventListener('click', ()=> document.getElementById('piano').focus());
+
+function stopAllNotes(){
+  for (const note in activeOscillators){
+    if (activeOscillators[note]) stopNote(note);
+  }
+}
+
+const happy_birthday = [
+  ['C4',0.5],['C4',0.25],['D4',0.75],['C4',0.75],['F4',0.75],['E4',1.0],
+  ['C4',0.5],['C4',0.25],['D4',0.75],['C4',0.75],['G4',0.75],['F4',1.0],
+  ['C4',0.5],['C4',0.25],['C5',0.75],['A4',0.75],['F4',0.75],['E4',0.75],['D4',1.0],
+  ['A#4',0.5],['A#4',0.25],['A4',0.75],['F4',0.75],['G4',0.75],['F4',1.0]
+];
+
+const jingle_bells = [
+  ['E4',0.4], ['E4',0.4], ['E4',0.8],
+  ['E4',0.4], ['E4',0.4], ['E4',0.8],
+  ['E4',0.4], ['G4',0.4], ['C4',0.4], ['D4',0.4], ['E4',1.0],
+  ['F4',0.4], ['F4',0.4], ['F4',0.4], ['F4',0.4],
+  ['F4',0.4], ['E4',0.4], ['E4',0.4], ['E4',0.8],
+  ['E4',0.4], ['D4',0.4], ['D4',0.4], ['E4',0.4],
+  ['D4',0.4], ['G4',1.2]
+];
+
+const twinkle_simple = [
+  ['C4',0.5], ['C4',0.5], ['G4',0.5], ['G4',0.5],
+  ['A4',0.5], ['A4',0.5], ['G4',1.0],
+  ['F4',0.5], ['F4',0.5], ['E4',0.5], ['E4',0.5],
+  ['D4',0.5], ['D4',0.5], ['C4',1.0],
+  ['G4',0.5], ['G4',0.5], ['F4',0.5], ['F4',0.5],
+  ['E4',0.5], ['E4',0.5], ['D4',1.0],
+  ['G4',0.5], ['G4',0.5], ['F4',0.5], ['F4',0.5],
+  ['E4',0.5], ['E4',0.5], ['D4',1.0],
+  ['C4',0.5], ['C4',0.5], ['G4',0.5], ['G4',0.5],
+  ['A4',0.5], ['A4',0.5], ['G4',1.0],
+  ['F4',0.5], ['F4',0.5], ['E4',0.5], ['E4',0.5],
+  ['D4',0.5], ['D4',0.5], ['C4',1.0]
+];
+
+const fur_elise_easy = [
+  ['E5',0.3], ['D#5',0.3], ['E5',0.3], ['D#5',0.3], ['E5',0.3],
+  ['B4',0.3], ['D5',0.3], ['C5',0.3], ['A4',0.6],
+  ['C4',0.3], ['E4',0.3], ['A4',0.3], ['B4',0.6],
+  ['E4',0.3], ['G#4',0.3], ['B4',0.3], ['C5',0.6],
+  ['E5',0.3], ['D#5',0.3], ['E5',0.3], ['D#5',0.3], ['E5',0.3],
+  ['B4',0.3], ['D5',0.3], ['C5',0.3], ['A4',0.6],
+  ['B4',0.3], ['C5',0.3], ['D5',0.3], ['E5',0.6],
+  ['G#4',0.3], ['B4',0.3], ['C5',0.3], ['E5',0.6],
+  ['A4',0.3], ['C5',0.3], ['E5',0.3], ['A5',0.8]
+];
+
+const ode_to_joy = [
+  ['E4',0.5], ['E4',0.5], ['F4',0.5], ['G4',0.5],
+  ['G4',0.5], ['F4',0.5], ['E4',0.5], ['D4',0.5],
+  ['C4',0.5], ['C4',0.5], ['D4',0.5], ['E4',0.5],
+  ['E4',0.75], ['D4',0.25], ['D4',1.0],
+  ['E4',0.5], ['E4',0.5], ['F4',0.5], ['G4',0.5],
+  ['G4',0.5], ['F4',0.5], ['E4',0.5], ['D4',0.5],
+  ['C4',0.5], ['C4',0.5], ['D4',0.5], ['E4',0.5],
+  ['D4',0.75], ['C4',0.25], ['C4',1.0]
+];
+
+document.getElementById('help').addEventListener('click', ()=>{
+  alert(
+`Instructions:
+- White keys: a s d f g h j k l ;
+- Black keys: w e t y u o p
+- Auto-play songs (press once to start):
+  Z = Happy Birthday  |  X = Stop
+  C = Jingle Bells     |  V = Stop
+  B = Twinkle Star     |  N = Stop
+  M = Fur Elise        |  , (comma) = Stop
+  . (period) = Ode to Joy  |  / = Stop
+- Volume control in top right corner.`
+  );
+});
+
+// Xử lý click vào các nút phím
+document.querySelectorAll('.key-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const key = btn.textContent.toLowerCase();
+    if (keyToNote[key] && !activeKeysSet.has(key)) {
+      ensureAudioStarted();
+      activeKeysSet.add(key);
+      const note = keyToNote[key];
+      highlightKeyByChar(key, true);
+      playNote(note);
+      
+      // Tự động dừng sau 0.5 giây
+      setTimeout(() => {
+        stopNote(note);
+        highlightKeyByChar(key, false);
+        activeKeysSet.delete(key);
+      }, 500);
+    }
+  });
+});
+
+// Xử lý click vào các bài hát
+document.querySelectorAll('.song-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const songName = btn.getAttribute('data-song');
+    playSongByName(songName);
+  });
+});
+
+// Xử lý click vào nút stop
+document.querySelectorAll('.stop-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    stopAutoPlay = true;
+    autoPlaying = false;
+    // Dừng tất cả các nốt nhạc
+    for (const note in activeOscillators) {
+      if (activeOscillators[note]) stopNote(note);
+    }
+    // Bỏ highlight tất cả các phím
+    whiteKeyElems.forEach(el => el.classList.remove('active'));
+    blackKeyElems.forEach(o => o.elem.classList.remove('active'));
+  });
+});
+
+// Hàm phát nhạc theo tên
+function playSongByName(songName) {
+  let songArray;
+  switch(songName) {
+    case 'happy_birthday':
+      songArray = happy_birthday;
+      break;
+    case 'jingle_bells':
+      songArray = jingle_bells;
+      break;
+    case 'twinkle':
+      songArray = twinkle_simple;
+      break;
+    case 'fur_elise':
+      songArray = fur_elise_easy;
+      break;
+    case 'ode_to_joy':
+      songArray = ode_to_joy;
+      break;
+    default:
+      return;
+  }
+  playSongArray(songArray);
+}
+
+window.addEventListener('beforeunload', ()=> {
+  stopAllNotes();
+  if (isGameRunning) {
+    clearInterval(cactusInterval);
+    clearInterval(cloudInterval);
+    clearInterval(scoreInterval);
+  }
+});
+</script>
+
+</body>
+</html>
