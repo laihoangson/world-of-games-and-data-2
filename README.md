@@ -30,7 +30,7 @@ The backend analytics API and PostgreSQL database are fully deployed and hosted 
 
 * **Live Dashboard:** Available directly on the website under the "Analysis" tab.
 * **Backend API Endpoint:** `https://flappy-analytics.onrender.com`
-* **Database:** PostgreSQL (Hosted on Render)
+* **Database:** PostgreSQL (Hosted on Supabase)
 
 *Simply play a few rounds of Flappy Plane on the website, and your gameplay data will be instantly synced and visualized on the Live Analytics Dashboard!*
 
