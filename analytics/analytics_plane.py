@@ -680,7 +680,7 @@ def get_plane_stats():
             SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason, end_time 
             FROM game_sessions 
             ORDER BY end_time DESC 
-            LIMIT 10
+            LIMIT 100
         ''')
         recent_games = [
             {
