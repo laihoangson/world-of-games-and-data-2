@@ -391,7 +391,7 @@ function getLocalAnalytics() {
 function checkServerConnection() {
     return fetch(`${SERVER_URL}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000) // Timeout sau 2 giây
+        signal: AbortSignal.timeout(60000) // Timeout sau 60 giây
     })
     .then(response => response.ok)
     .catch(() => false);
