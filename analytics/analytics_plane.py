@@ -14,7 +14,13 @@ load_dotenv()
 
 app = Flask(__name__)
 # Restrict CORS cho production: Chỉ cho phép origins từ Render URL hoặc local
-CORS(app, origins=["https://flappy-analytics.onrender.com", "http://localhost:*", "https://laihoangson.github.io"])  # Thay bằng URL thực của bạn nếu cần
+CORS(app, origins=[
+    "https://flappy-analytics.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:5173",
+    "http://127.0.0.1:5000",
+    "https://laihoangson.github.io"
+])
 
 # Setup logging cho production
 logging.basicConfig(level=logging.INFO)
@@ -35,8 +41,8 @@ def init_db():
     c.execute('''
         CREATE TABLE IF NOT EXISTS game_sessions (
             id TEXT PRIMARY KEY,
-            start_time TEXT,
-            end_time TEXT,
+            start_time TIMESTAMP,
+            end_time TIMESTAMP,
             score INTEGER,
             coins_collected INTEGER,
             ufos_shot INTEGER,
@@ -258,7 +264,7 @@ def generate_complete_stats():
         
         # Recent games
         c.execute('''
-            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason 
+            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason, end_time 
             FROM game_sessions 
             ORDER BY end_time DESC 
             LIMIT 10
@@ -671,7 +677,7 @@ def get_plane_stats():
         
         # Recent games - thêm bullets_fired
         c.execute('''
-            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason 
+            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason, end_time 
             FROM game_sessions 
             ORDER BY end_time DESC 
             LIMIT 10
@@ -683,7 +689,8 @@ def get_plane_stats():
                 'ufos': row[2],
                 'bullets': row[3],
                 'duration': row[4],
-                'death_reason': row[5]
+                'death_reason': row[5],
+                'date': row[6]
             }
             for row in c.fetchall()
         ]
