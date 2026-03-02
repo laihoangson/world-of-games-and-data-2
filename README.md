@@ -2,7 +2,7 @@
 
 ## URL
 
-The URL for the website is [https://laihoangson.github.io/world-of-games-and-data/](https://laihoangson.github.io/world-of-games-and-data/)
+The URL for the website is [https://laihoangson.github.io/world-of-games-and-data-2/](https://laihoangson.github.io/world-of-games-and-data-2/)
 
 ## PC Games Collection
 
