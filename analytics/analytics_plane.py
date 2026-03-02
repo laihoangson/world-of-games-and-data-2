@@ -7,7 +7,10 @@ import signal
 import sys
 import os
 import logging
-import psycopg2  # Thay sqlite3 bằng psycopg2 cho PostgreSQL
+import psycopg2  
+from dotenv import load_dotenv 
+
+load_dotenv()
 
 app = Flask(__name__)
 # Restrict CORS cho production: Chỉ cho phép origins từ Render URL hoặc local
