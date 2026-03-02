@@ -53,7 +53,6 @@ def init_db():
 # THÊM: Hàm xử lý tắt server
 def shutdown_handler(signum=None, frame=None):
     logger.info("\n🛑 Server is shutting down gracefully...")
-    sys.exit(0)
 
 # Đăng ký handlers cho tắt server
 atexit.register(shutdown_handler)
@@ -792,3 +791,6 @@ if __name__ == '__main__':
     logger.info("   - /                    - View static dashboard")
     logger.info("⚠️  Press Ctrl+C to stop server - data will be preserved")
     app.run(debug=False, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0') 
+    
+# Ensure DB initialized when app starts (Gunicorn compatible)
+init_db()
