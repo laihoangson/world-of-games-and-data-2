@@ -20,29 +20,19 @@ Arcade brick breaker with power-ups, multiple levels, and neon visual effects.
 
 See the videos to learn how to play the PC games here: https://drive.google.com/drive/folders/1MoglukpwKfDFlNKquAvJ0Esi65AaFzk0?usp=sharing
 
-## Advanced Analytics System with Interactive Dashboard
+## 📊 Advanced Analytics System & Interactive Dashboard
 
-The Flappy Plane game includes an advanced analytics system that tracks:
-- Player performance metrics
-- Game session data
-- Death reasons analysis
-- Score distribution
+The *Flappy Plane Adventure* game is integrated with a live, real-time analytics system. It actively tracks player performance metrics, game session durations, score distributions, and detailed death reasons.
 
-### 🚀 Running Real-time Analytics
+### 🚀 Live Analytics Server
 
-To enable the live analytics dashboard for Flappy Plane:
+The backend analytics API and PostgreSQL database are fully deployed and hosted live on the cloud. You do not need to run any local servers to view the data.
 
-1. Clone the repository (if you haven’t already):
+* **Live Dashboard:** Available directly on the website under the "Analysis" tab.
+* **Backend API Endpoint:** `https://flappy-analytics.onrender.com`
+* **Database:** PostgreSQL (Hosted on Render)
 
-```bash
-git clone git@github.com:laihoangson/world-of-games.git
-```
-
-2. Run the Python analytics server:
-
-Go to analytics/ folder and run analytics_plane.py in VSCode to open server
-
-3. The server will start on http://localhost:5000
+*Simply play a few rounds of Flappy Plane on the website, and your gameplay data will be instantly synced and visualized on the Live Analytics Dashboard!*
 
 ## Data Analysis Report "Game Analytics: From Exploratory Data Analysis to Predictive Modeling"
 
