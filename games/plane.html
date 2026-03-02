@@ -245,9 +245,6 @@ const ctx = canvas.getContext('2d');
 canvas.width = 600;
 canvas.height = 800;
 
-// ==================== DELTA TIME (KHÔNG XÓA CODE CŨ) ====================
-let lastTime = 0;
-
 // Analytics tracking - THÊM CỜ KIỂM SOÁT
 let gameAnalytics = {
     gameId: null,
@@ -308,6 +305,11 @@ function queueAnalytics(analyticsData) {
     }
     
     localStorage.setItem('pendingPlaneAnalytics', JSON.stringify(pendingAnalytics));
+    
+    // KHÔNG HIỂN THỊ THÔNG BÁO NỮA
+    // if (pendingAnalytics.length > 1) {
+    //     showNotification(`${pendingAnalytics.length} games waiting to sync`, 5000);
+    // }
 }
 
 // THÊM: Hàm đồng bộ BATCH - GỬI NHIỀU GAME CÙNG LÚC
@@ -323,6 +325,8 @@ function syncBatchAnalytics(retryCount = 3) {
     }
     
     console.log(`Syncing batch of ${unsentGames.length} games...`);
+    // KHÔNG HIỂN THỊ THÔNG BÁO KHI ĐANG ĐỒNG BỘ
+    // showNotification(`Syncing ${unsentGames.length} games...`, 0);
     
     // GỬI TẤT CẢ TRONG MỘT LẦN
     fetch(`${SERVER_URL}/api/sync-analytics`, {
@@ -341,19 +345,27 @@ function syncBatchAnalytics(retryCount = 3) {
     .then(data => {
         console.log('Batch sync successful:', data);
         
+        // ĐÁNH DẤU TẤT CẢ ĐÃ GỬI THÀNH CÔNG
         const successfulIds = new Set(unsentGames.map(game => game.gameId));
         pendingAnalytics = pendingAnalytics.map(game => 
             successfulIds.has(game.gameId) ? { ...game, sent: true } : game
         );
         
+        // LỌC RA NHỮNG GAME ĐÃ GỬI THÀNH CÔNG (giữ lại những game chưa gửi được)
         pendingAnalytics = pendingAnalytics.filter(game => !game.sent);
         
         localStorage.setItem('pendingPlaneAnalytics', JSON.stringify(pendingAnalytics));
+        
+        // KHÔNG HIỂN THỊ THÔNG BÁO THÀNH CÔNG
+        // showNotification(`Successfully synced ${unsentGames.length} games!`, 3000);
         isSyncing = false;
     })
     .catch(error => {
         console.log('Batch sync failed:', error);
+        // KHÔNG HIỂN THỊ THÔNG BÁO LỖI
+        // showNotification('Sync failed - will retry later', 3000);
         isSyncing = false;
+        // Retry sau 5s
         setTimeout(() => syncBatchAnalytics(retryCount - 1), 5000);
     });
 }
@@ -379,7 +391,7 @@ function getLocalAnalytics() {
 function checkServerConnection() {
     return fetch(`${SERVER_URL}/health`, {
         method: 'GET',
-        signal: AbortSignal.timeout(2000)
+        signal: AbortSignal.timeout(2000) // Timeout sau 2 giây
     })
     .then(response => response.ok)
     .catch(() => false);
@@ -387,6 +399,7 @@ function checkServerConnection() {
 
 // THÊM: Hiển thị thông báo - ĐÃ VÔ HIỆU HÓA HOÀN TOÀN
 function showNotification(message, duration = 3000) {
+    // KHÔNG LÀM GÌ CẢ - ẨN HOÀN TOÀN THÔNG BÁO
     return;
 }
 
@@ -423,12 +436,16 @@ function startGameAnalytics() {
     gameStarted = true;
     gameActive = true;
     
+    // KIỂM TRA SERVER VÀ ĐỒNG BỘ NHANH
     checkServerConnection().then(serverOnline => {
         if (serverOnline) {
+            // Nếu có dữ liệu chờ và chưa đồng bộ, thực hiện đồng bộ batch
             const unsentCount = pendingAnalytics.filter(game => !game.sent).length;
             if (unsentCount > 0) {
-                setTimeout(syncBatchAnalytics, 1000);
+                setTimeout(syncBatchAnalytics, 1000); // Đồng bộ sau 1 giây
             }
+        } else {
+            // KHÔNG HIỂN THỊ THÔNG BÁO "SERVER OFFLINE"
         }
     });
 }
@@ -446,16 +463,19 @@ function sendAnalyticsData() {
         
         console.log('Sending analytics:', gameAnalytics);
         
+        // THỬ GỬI TRỰC TIẾP - NHANH HƠN
         fetch(`${SERVER_URL}/api/game-analytics`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(gameAnalytics),
-            signal: AbortSignal.timeout(2000)
+            signal: AbortSignal.timeout(2000) // Timeout nhanh hơn
         })
         .then(response => {
-            if (!response.ok) throw new Error('Network response was not ok');
+            if (!response.ok) {
+                throw new Error('Network response was not ok');
+            }
             return response.json();
         })
         .then(data => {
@@ -466,6 +486,8 @@ function sendAnalyticsData() {
         })
         .catch(error => {
             console.log('Direct send failed, queuing for batch sync:', error);
+            
+            // THÊM VÀO HÀNG ĐỢI VÀ SẼ ĐỒNG BỘ SAU
             queueAnalytics(gameAnalytics);
             isSendingAnalytics = false;
             storeLocalAnalytics();
@@ -477,10 +499,16 @@ function sendAnalyticsData() {
 function storeLocalAnalytics() {
     try {
         let gamesHistory = JSON.parse(localStorage.getItem('planeGamesHistory') || '[]');
+        
+        // Chỉ thêm nếu chưa tồn tại
         const exists = gamesHistory.some(game => game.gameId === gameAnalytics.gameId);
         if (!exists) {
             gamesHistory.unshift(gameAnalytics);
-            if (gamesHistory.length > 50) gamesHistory = gamesHistory.slice(0, 50);
+            
+            if (gamesHistory.length > 50) { // Giảm kích thước lưu trữ
+                gamesHistory = gamesHistory.slice(0, 50);
+            }
+            
             localStorage.setItem('planeGamesHistory', JSON.stringify(gamesHistory));
         }
     } catch (e) {
@@ -506,14 +534,12 @@ function hideStartScreen() {
     document.getElementById('startScreen').style.display = 'none';
 }
 
-// ==================== UPDATE VỚI DELTA TIME (KHÔNG XÓA CODE CŨ) ====================
-function update(deltaTime = 1/60) {
-    const multiplier = deltaTime * 60;   // Chuẩn hóa về 60 FPS
-
+// Update game
+function update() {
     if(showGuide || gameOver || !gameActive) return;
     
-    plane.dy += plane.gravity * multiplier; 
-    plane.y += plane.dy * multiplier;
+    plane.dy += plane.gravity; 
+    plane.y += plane.dy;
 
     // Track pipes passed
     pipesPassed = Math.max(pipesPassed, Math.floor(frame / 100));
@@ -521,7 +547,7 @@ function update(deltaTime = 1/60) {
 
     // Pipes collision
     for(let p of pipes){
-        p.x -= PIPE_SPEED * multiplier;
+        p.x -= PIPE_SPEED;
         if(plane.x < p.x+p.width && plane.x+plane.width > p.x &&
            plane.y < p.y+p.height && plane.y+plane.height > p.y){
             gameAnalytics.deathReason = 'pipe';
@@ -532,7 +558,7 @@ function update(deltaTime = 1/60) {
 
     // Coins collection
     for(let c of coins){
-        c.x -= COIN_SPEED * multiplier;
+        c.x -= COIN_SPEED;
         if(!c.collected && plane.x < c.x+c.width && plane.x+plane.width>c.x &&
            plane.y < c.y+c.height && plane.y+plane.height>c.y){
             score++; 
@@ -544,8 +570,8 @@ function update(deltaTime = 1/60) {
 
     // Enemies
     for(let e of enemies){
-        e.x -= ENEMY_SPEED * multiplier; 
-        e.y += e.dy * multiplier;
+        e.x -= ENEMY_SPEED; 
+        e.y += e.dy;
         if(e.y<e.topY || e.y+e.height>e.bottomY) e.dy*=-1;
 
         // UFO collision
@@ -561,7 +587,7 @@ function update(deltaTime = 1/60) {
             }
         }
 
-        e.shootCooldown -= multiplier;
+        e.shootCooldown--;
         if(e.shootCooldown<=0){
             enemyBullets.push({ x:e.x-5, y:e.y+e.height/2-2, width:10, height:5 });
             e.shootCooldown=Math.floor(Math.random()*80+40);
@@ -570,7 +596,7 @@ function update(deltaTime = 1/60) {
 
     // Player bullets
     for(let b of bullets){
-        b.x += BULLET_SPEED * multiplier;
+        b.x += BULLET_SPEED;
         for(let e of enemies){
             if(e.alive && b.x < e.x+e.width && b.x+b.width>e.x &&
                b.y < e.y+e.height && b.y+b.height>e.y){
@@ -583,7 +609,7 @@ function update(deltaTime = 1/60) {
 
     // Enemy bullets
     for(let eb of enemyBullets){
-        eb.x -= ENEMY_BULLET_SPEED * multiplier;
+        eb.x -= ENEMY_BULLET_SPEED;
         if(plane.x<eb.x+eb.width && plane.x+plane.width>eb.x &&
            plane.y<eb.y+eb.height && plane.y+plane.height>eb.y){
             plane.lives--;
@@ -623,6 +649,7 @@ function handleGameOver() {
     gameActive = false;
     showRestartButton();
     
+    // GỬI NGAY LẬP TỨC - KHÔNG CHỜ
     sendAnalyticsData();
 }
 
@@ -927,15 +954,11 @@ function drawGameOverScreen() {
     ctx.fillText('Click Play Again button to play again', canvas.width/2, canvas.height/2 + 90);
 }
 
-// ==================== GAME LOOP VỚI DELTA TIME ====================
-function loop(timestamp = 0) {
-    if (!lastTime) lastTime = timestamp;
-    const deltaTime = Math.min((timestamp - lastTime) / 1000, 0.1); // giới hạn lag
-    lastTime = timestamp;
-
-    update(deltaTime);
-    draw();
-    requestAnimationFrame(loop);
+// Game loop
+function loop(){ 
+    update(); 
+    draw(); 
+    requestAnimationFrame(loop); 
 }
 
 // Event listeners
@@ -1028,6 +1051,7 @@ window.addEventListener('load', () => {
     
     if (unsentCount > 0) {
         console.log(`Found ${unsentCount} unsent games`);
+        // Thử đồng bộ sau 3 giây khi trang load xong
         setTimeout(() => {
             checkServerConnection().then(online => {
                 if (online) {
