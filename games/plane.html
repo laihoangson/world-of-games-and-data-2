@@ -535,11 +535,11 @@ function hideStartScreen() {
 }
 
 // Update game
-function update() {
+function update(factor) {
     if(showGuide || gameOver || !gameActive) return;
     
-    plane.dy += plane.gravity; 
-    plane.y += plane.dy;
+    plane.dy += plane.gravity * factor; 
+    plane.y += plane.dy * factor;
 
     // Track pipes passed
     pipesPassed = Math.max(pipesPassed, Math.floor(frame / 100));
@@ -547,7 +547,7 @@ function update() {
 
     // Pipes collision
     for(let p of pipes){
-        p.x -= PIPE_SPEED;
+        p.x -= PIPE_SPEED * factor;
         if(plane.x < p.x+p.width && plane.x+plane.width > p.x &&
            plane.y < p.y+p.height && plane.y+plane.height > p.y){
             gameAnalytics.deathReason = 'pipe';
@@ -558,7 +558,7 @@ function update() {
 
     // Coins collection
     for(let c of coins){
-        c.x -= COIN_SPEED;
+        c.x -= COIN_SPEED * factor;
         if(!c.collected && plane.x < c.x+c.width && plane.x+plane.width>c.x &&
            plane.y < c.y+c.height && plane.y+plane.height>c.y){
             score++; 
@@ -570,8 +570,8 @@ function update() {
 
     // Enemies
     for(let e of enemies){
-        e.x -= ENEMY_SPEED; 
-        e.y += e.dy;
+        e.x -= ENEMY_SPEED * factor; 
+        e.y += e.dy * factor;
         if(e.y<e.topY || e.y+e.height>e.bottomY) e.dy*=-1;
 
         // UFO collision
@@ -587,7 +587,7 @@ function update() {
             }
         }
 
-        e.shootCooldown--;
+        e.shootCooldown -= factor;
         if(e.shootCooldown<=0){
             enemyBullets.push({ x:e.x-5, y:e.y+e.height/2-2, width:10, height:5 });
             e.shootCooldown=Math.floor(Math.random()*80+40);
@@ -596,7 +596,7 @@ function update() {
 
     // Player bullets
     for(let b of bullets){
-        b.x += BULLET_SPEED;
+        b.x += BULLET_SPEED * factor;
         for(let e of enemies){
             if(e.alive && b.x < e.x+e.width && b.x+b.width>e.x &&
                b.y < e.y+e.height && b.y+b.height>e.y){
@@ -609,7 +609,7 @@ function update() {
 
     // Enemy bullets
     for(let eb of enemyBullets){
-        eb.x -= ENEMY_BULLET_SPEED;
+        eb.x -= ENEMY_BULLET_SPEED * factor;
         if(plane.x<eb.x+eb.width && plane.x+plane.width>eb.x &&
            plane.y<eb.y+eb.height && plane.y+plane.height>eb.y){
             plane.lives--;
@@ -637,8 +637,8 @@ function update() {
         return;
     }
     
-    if(frame%100===0) createPipe();
-    frame++;
+    if(Math.floor(frame) % 100 === 0) createPipe();
+    frame += factor;
 }
 
 // Xử lý khi game over
@@ -955,8 +955,13 @@ function drawGameOverScreen() {
 }
 
 // Game loop
+let lastTime = performance.now();
 function loop(){ 
-    update(); 
+    let now = performance.now();
+    let delta = (now - lastTime) / 1000;
+    lastTime = now;
+    let factor = delta * 60;
+    update(factor); 
     draw(); 
     requestAnimationFrame(loop); 
 }
@@ -994,6 +999,28 @@ canvas.addEventListener('click', e => {
     const rect = canvas.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
+    
+    if(showGuide){ 
+        if (x >= canvas.width/2 - 100 && x <= canvas.width/2 + 100 &&
+            y >= 500 && y <= 560) {
+            showGuide = false; 
+        }
+        return; 
+    } 
+    
+    if(gameActive && !gameOver) {
+        plane.dy = plane.jump;
+        bullets.push({ x:plane.x+plane.width, y:plane.y+plane.height/2-2, width:10, height:5, hit:false });
+        gameAnalytics.bulletsFired++;
+    }
+});
+
+canvas.addEventListener('touchstart', e => {
+    e.preventDefault();
+    const touch = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
     
     if(showGuide){ 
         if (x >= canvas.width/2 - 100 && x <= canvas.width/2 + 100 &&
