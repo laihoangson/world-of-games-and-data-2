@@ -210,10 +210,8 @@ canvas {
 <button id="restartBtn">Play Again</button>
 <div id="author">Created by: Hoang Son Lai</div>
 
-<!-- Thêm notification - Đã ẩn hoàn toàn -->
 <div id="notification"></div>
 
-<!-- Thêm start screen -->
 <div id="startScreen">
   <h1 style="font-size: 48px; margin-bottom: 20px; color: #FFD740;">FLAPPY PLANE ADVENTURE</h1>
   <div style="background: rgba(255, 255, 255, 0.1); padding: 30px; border-radius: 15px; max-width: 500px;">
@@ -229,7 +227,6 @@ canvas {
   </div>
 </div>
 
-<!-- Thêm loading indicator -->
 <div id="loadingIndicator">
   Sending analytics data...
 </div>
@@ -285,6 +282,7 @@ let gameActive = false;
 let pipes = [], coins = [], enemies = [], bullets = [], enemyBullets = [];
 let frame = 0, score = 0, gameOver = false;
 let pipesPassed = 0;
+let lastSpawnFrame = 0; // SỬA: Thêm biến theo dõi frame spawn gần nhất để tránh sinh đôi vật thể
 
 // TĂNG TỐC ĐỘ DI CHUYỂN CỦA CÁC VẬT THỂ
 const PIPE_SPEED = 3;
@@ -637,7 +635,11 @@ function update(factor) {
         return;
     }
     
-    if(Math.floor(frame) % 100 === 0) createPipe();
+    // SỬA LẠI LOGIC SPAWN Ở ĐÂY: Cứ đủ 100 frame thì spawn, không quan tâm frame nhảy số lố bao nhiêu
+    if (frame >= lastSpawnFrame) {
+        createPipe();
+        lastSpawnFrame += 100; 
+    }
     frame += factor;
 }
 
@@ -1054,6 +1056,7 @@ function resetGame(){
     score = 0; 
     frame = 0; 
     pipesPassed = 0;
+    lastSpawnFrame = 0; // SỬA: Reset biến theo dõi khi chơi lại
     gameOver = false;
     isSendingAnalytics = false;
     

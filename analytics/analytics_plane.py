@@ -788,16 +788,21 @@ def health_check():
 def serve_dashboard():
     return app.send_static_file('dashboard.html')
 
+# KHỞI TẠO DATABASE AN TOÀN CHO RENDER (GUNICORN)
+# Bọc trong app_context và try-except để không bị treo server nếu mạng chậm
+with app.app_context():
+    try:
+        init_db()
+        logger.info("✅ Database initialized successfully on boot!")
+    except Exception as e:
+        logger.error(f"⚠️ Warning: Could not initialize DB on boot: {e}")
+
 if __name__ == '__main__':
-    init_db()
-    logger.info("🚀 Plane Analytics Server starting on http://localhost:5000")
+    logger.info("🚀 Plane Analytics Server starting")
     logger.info("📊 New endpoints available:")
     logger.info("   - /api/export-data     - Export raw data to JSON")
     logger.info("   - /api/export-stats    - Export statistics to JSON") 
     logger.info("   - /api/generate-dashboard - Generate static HTML dashboard")
     logger.info("   - /                    - View static dashboard")
     logger.info("⚠️  Press Ctrl+C to stop server - data will be preserved")
-    app.run(debug=False, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0') 
-    
-# Ensure DB initialized when app starts (Gunicorn compatible)
-init_db()
+    app.run(debug=False, port=int(os.environ.get('PORT', 5000)), host='0.0.0.0')
