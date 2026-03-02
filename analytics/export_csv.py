@@ -54,4 +54,4 @@ if __name__ == '__main__':
     # Normalize the path format for your specific operating system
     csv_path = os.path.normpath(csv_path)
     
-    export_db_to_csv(csv_path)
+    export_db_to_csv(csv_path) 
