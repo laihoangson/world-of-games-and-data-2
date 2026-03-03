@@ -453,7 +453,7 @@
         async function loadAnalytics() {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);  // Timeout 5s
+                const timeoutId = setTimeout(() => controller.abort(), 60000);  // Timeout 60s
                 
                 const response = await fetch(API_URL, { signal: controller.signal });
                 clearTimeout(timeoutId);
