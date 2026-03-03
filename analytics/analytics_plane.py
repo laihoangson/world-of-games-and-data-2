@@ -323,9 +323,9 @@ def generate_complete_stats():
             else:
                 score_distribution['0-4'] += 1
         
-        # All games for scatter plots
+        # All games for scatter plots (ĐÃ SỬA: Thêm death_reason và end_time)
         c.execute('''
-            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration
+            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason, end_time
             FROM game_sessions
         ''')
         all_games = [
@@ -334,7 +334,9 @@ def generate_complete_stats():
                 'coins': row[1],
                 'ufos': row[2],
                 'bullets': row[3],
-                'duration': row[4]
+                'duration': row[4],
+                'death_reason': row[5],
+                'date': row[6].isoformat() if hasattr(row[6], 'isoformat') else row[6]
             }
             for row in c.fetchall()
         ]
@@ -449,7 +451,180 @@ def generate_dashboard():
 
         .stats-grid {{
             display: grid;
-            grid-template-co...(truncated 5823 characters)...    </div>
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 40px;
+        }}
+
+        .stat-card {{
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease;
+        }}
+
+        .stat-card:hover {{
+            transform: translateY(-5px);
+        }}
+
+        .stat-card h3 {{
+            font-size: 0.9em;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            opacity: 0.9;
+        }}
+
+        .stat-card .value {{
+            font-size: 2.5em;
+            font-weight: bold;
+        }}
+
+        .charts-container {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }}
+
+        .chart-box {{
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            height: 400px;
+            position: relative;
+        }}
+
+        .chart-box h2 {{
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.4em;
+        }}
+
+        .chart-container {{
+            height: 300px;
+            position: relative;
+        }}
+
+        .scatter-charts {{
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 40px;
+        }}
+
+        .recent-games {{
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+            overflow-x: auto;
+        }}
+
+        .recent-games h2 {{
+            color: #2c3e50;
+            margin-bottom: 20px;
+            text-align: center;
+            font-size: 1.4em;
+        }}
+
+        .game-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }}
+
+        .game-table th, .game-table td {{
+            padding: 12px 15px;
+            text-align: center;
+            border-bottom: 1px solid #eee;
+        }}
+
+        .game-table th {{
+            background: #f8f9fa;
+            color: #2c3e50;
+            font-weight: bold;
+        }}
+
+        .game-table tr:hover {{
+            background: #f8f9fa;
+        }}
+
+        @media (max-width: 768px) {{
+            .charts-container, .scatter-charts {{
+                grid-template-columns: 1fr;
+            }}
+            .stat-card .value {{
+                font-size: 2em;
+            }}
+            .chart-box {{
+                height: 350px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚀 Flappy Plane Analytics</h1>
+            <p>Detailed statistics and performance analysis (Static View)</p>
+            <p style="font-size: 0.9em; margin-top: 10px;">Last updated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</p>
+        </div>
+
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3>Total Games Played</h3>
+                <div class="value">{stats_data.get('total_games', 0)}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Average Score</h3>
+                <div class="value">{stats_data.get('avg_score', 0)}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Highest Score</h3>
+                <div class="value">{stats_data.get('max_score', 0)}</div>
+            </div>
+            <div class="stat-card">
+                <h3>Avg Duration (s)</h3>
+                <div class="value">{stats_data.get('avg_duration', 0)}</div>
+            </div>
+        </div>
+
+        <div class="charts-container">
+            <div class="chart-box">
+                <h2>Death Reasons Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="deathChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-box">
+                <h2>Score Distribution</h2>
+                <div class="chart-container">
+                    <canvas id="scoreChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="scatter-charts">
+            <div class="chart-box">
+                <h2>Score vs Bullets Fired</h2>
+                <div class="chart-container">
+                    <canvas id="scoreBulletsChart"></canvas>
+                </div>
+            </div>
+            
+            <div class="chart-box">
+                <h2>UFOs Shot vs Coins Collected</h2>
+                <div class="chart-container">
+                    <canvas id="ufoCoinChart"></canvas>
+                </div>
+            </div>
         </div>
 
         <div class="recent-games">
@@ -738,9 +913,9 @@ def get_plane_stats():
             else:
                 score_distribution['0-4'] += 1
         
-        # Lấy tất cả games cho scatter plots - thêm bullets_fired
+        # Lấy tất cả games cho scatter plots (ĐÃ SỬA: Thêm death_reason và end_time)
         c.execute('''
-            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration
+            SELECT score, coins_collected, ufos_shot, bullets_fired, game_duration, death_reason, end_time
             FROM game_sessions
         ''')
         all_games = [
@@ -749,7 +924,9 @@ def get_plane_stats():
                 'coins': row[1],
                 'ufos': row[2],
                 'bullets': row[3],
-                'duration': row[4]
+                'duration': row[4],
+                'death_reason': row[5],
+                'date': row[6].isoformat() if hasattr(row[6], 'isoformat') else row[6]
             }
             for row in c.fetchall()
         ]
@@ -772,7 +949,7 @@ def get_plane_stats():
             'death_reasons': death_reasons,
             'recent_games': recent_games,
             'score_distribution': score_distribution,
-            'all_games': all_games  # Thêm dữ liệu cho scatter plots
+            'all_games': all_games  # Thêm dữ liệu cho scatter plots, bao gồm death_reason và date
         })
         
     except Exception as e:
