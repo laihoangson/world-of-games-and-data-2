@@ -305,7 +305,7 @@
             </div>
             
             <div class="chart-box">
-                <h2>Cumulative Game Sessions</h2>
+                <h2>Daily Game Sessions</h2>
                 <div class="chart-controls">
                     <label style="font-size: 0.9em; color: #7f8c8d; font-weight: bold;">Last N Days:</label>
                     <input type="number" id="areaDaysFilter" placeholder="All" min="1" style="width: 100px;">
@@ -833,19 +833,12 @@
                 currentDay.setDate(currentDay.getDate() + 1);
             }
 
-            const cumulativeCounts = [];
-            let sum = 0;
-            for (let c of counts) {
-                sum += c;
-                cumulativeCounts.push(sum);
-            }
-
             let finalLabels = allDays;
-            let finalData = cumulativeCounts;
+            let finalData = counts; // Dùng trực tiếp số liệu đếm theo ngày, không cộng dồn nữa
             
             if (daysLimit && daysLimit > 0 && allDays.length > daysLimit) {
                 finalLabels = allDays.slice(-daysLimit);
-                finalData = cumulativeCounts.slice(-daysLimit);
+                finalData = counts.slice(-daysLimit);
             }
 
             const ctx = document.getElementById('cumulativeAreaChart').getContext('2d');
@@ -858,14 +851,14 @@
                 data: {
                     labels: finalLabels,
                     datasets: [{
-                        label: 'Total Sessions',
+                        label: 'Daily Sessions',
                         data: finalData,
-                        fill: true,
+                        fill: false, // Bỏ thuộc tính fill để chuyển từ Area thành Line chart
                         backgroundColor: 'rgba(118, 75, 162, 0.2)',
                         borderColor: 'rgba(118, 75, 162, 1)',
                         tension: 0.3,
-                        pointRadius: 0, // Ẩn hoàn toàn point bubble
-                        pointHoverRadius: 6 // Giữ lại hover để người dùng vẫn soi được điểm ảnh
+                        pointRadius: 0, 
+                        pointHoverRadius: 6 
                     }]
                 },
                 options: {
@@ -895,7 +888,11 @@
                                     const d = new Date(dateStr);
                                     const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
                                     
-                                    // Chống trùng lặp hiển thị nhiều tháng giống nhau
+                                    // Không hiển thị nhãn Nov 2025
+                                    if (label === 'Nov 2025') {
+                                        return null;
+                                    }
+                                    
                                     if (index > 0) {
                                         const prevDateStr = this.getLabelForValue(ticks[index - 1].value);
                                         const prevD = new Date(prevDateStr);
@@ -910,7 +907,7 @@
                         },
                         y: {
                             beginAtZero: true,
-                            title: { display: true, text: 'Total Sessions' },
+                            title: { display: true, text: 'Daily Sessions' }, // Cập nhật tên trục Y
                             grid: { color: 'rgba(0, 0, 0, 0.1)' }
                         }
                     }
