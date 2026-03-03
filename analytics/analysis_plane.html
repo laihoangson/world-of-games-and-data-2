@@ -93,20 +93,23 @@
             padding: 25px;
             border-radius: 10px;
             box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
-            height: 400px;
+            height: 450px;
             position: relative;
+            display: flex;
+            flex-direction: column;
         }
 
         .chart-box h2 {
             color: #2c3e50;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             text-align: center;
             font-size: 1.4em;
         }
 
         .chart-container {
-            height: 300px;
+            flex-grow: 1;
             position: relative;
+            min-height: 0;
         }
 
         .scatter-charts {
@@ -114,6 +117,31 @@
             grid-template-columns: 1fr 1fr;
             gap: 30px;
             margin-bottom: 40px;
+        }
+
+        .chart-controls {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+
+        .chart-controls select, .chart-controls input {
+            padding: 8px 12px;
+            border: 1px solid #ccd1d9;
+            border-radius: 6px;
+            font-size: 0.9em;
+            color: #2c3e50;
+            background-color: #f8f9fa;
+            outline: none;
+            transition: all 0.3s ease;
+        }
+
+        .chart-controls select:focus, .chart-controls input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
         }
 
         .recent-games {
@@ -130,7 +158,6 @@
             font-size: 1.4em;
         }
 
-        /* === THÊM: Khung bảng nhỏ + scroll (không sửa phần khác) === */
         .table-wrapper {
             max-height: 400px;
             overflow-y: auto;
@@ -210,7 +237,7 @@
             }
             
             .chart-box {
-                height: 350px;
+                height: 400px;
             }
             
             .table-wrapper {
@@ -229,8 +256,7 @@
         <div id="connectionStatus"></div>
 
         <div class="stats-grid" id="statsGrid">
-            <!-- Stats will be populated by JavaScript -->
-        </div>
+            </div>
 
         <div class="charts-container">
             <div class="chart-box">
@@ -242,6 +268,11 @@
             
             <div class="chart-box">
                 <h2>Score Distribution</h2>
+                <div class="chart-controls">
+                    <select id="scoreFilter">
+                        <option value="All">All Death Reasons</option>
+                        </select>
+                </div>
                 <div class="chart-container">
                     <canvas id="scoreChart"></canvas>
                 </div>
@@ -250,23 +281,43 @@
 
         <div class="scatter-charts">
             <div class="chart-box">
-                <h2>Score vs Bullets Fired</h2>
+                <h2>Parameter Relationship</h2>
+                <div class="chart-controls">
+                    <select id="scatterX">
+                        <option value="bullets" selected>Bullets Fired</option>
+                        <option value="score">Score</option>
+                        <option value="coins">Coins Collected</option>
+                        <option value="ufos">UFOs Shot</option>
+                        <option value="duration">Duration (s)</option>
+                    </select>
+                    <span style="font-weight: bold; color: #7f8c8d;">VS</span>
+                    <select id="scatterY">
+                        <option value="score" selected>Score</option>
+                        <option value="bullets">Bullets Fired</option>
+                        <option value="coins">Coins Collected</option>
+                        <option value="ufos">UFOs Shot</option>
+                        <option value="duration">Duration (s)</option>
+                    </select>
+                </div>
                 <div class="chart-container">
-                    <canvas id="scoreBulletsChart"></canvas>
+                    <canvas id="dynamicScatterChart"></canvas>
                 </div>
             </div>
             
             <div class="chart-box">
-                <h2>UFOs Shot vs Coins Collected</h2>
+                <h2>Cumulative Game Sessions</h2>
+                <div class="chart-controls">
+                    <label style="font-size: 0.9em; color: #7f8c8d; font-weight: bold;">Last N Days:</label>
+                    <input type="number" id="areaDaysFilter" placeholder="All" min="1" style="width: 100px;">
+                </div>
                 <div class="chart-container">
-                    <canvas id="ufoCoinChart"></canvas>
+                    <canvas id="cumulativeAreaChart"></canvas>
                 </div>
             </div>
         </div>
 
         <div class="recent-games">
             <h2>Recent Game Sessions</h2>
-            <!-- === THÊM: Khung nhỏ + scroll (không sửa phần khác) === -->
             <div class="table-wrapper">
                 <table class="game-table" id="recentGamesTable">
                     <thead>
@@ -281,8 +332,7 @@
                         </tr>
                     </thead>
                     <tbody id="recentGamesBody">
-                        <!-- Recent games will be populated by JavaScript -->
-                    </tbody>
+                        </tbody>
                 </table>
             </div>
         </div>
@@ -293,7 +343,8 @@
     </div>
 
     <script>
-        let deathChart, scoreChart, scoreBulletsChart, ufoCoinChart;
+        let deathChart, scoreChart, dynamicScatterChart, cumulativeAreaChart;
+        let globalGamesData = [];
 
         // Color palette for charts
         const chartColors = {
@@ -305,10 +356,8 @@
             unknown: '#95a5a6'
         };
 
-        // Sửa URL dynamic: Dùng window.location.origin để tự động lấy URL server (Render hoặc local)
         const API_URL = 'https://flappy-analytics.onrender.com/api/plane-stats';
 
-        // THÊM: Function để load từ CSV file (fallback)
         async function loadFromCSV() {
             try {
                 const response = await fetch('../csv_export/game_sessions.csv');
@@ -328,12 +377,10 @@
             }
         }
 
-        // SỬA: Function để parse CSV data - FIXED COLUMN MAPPING
         function parseCSVData(csvText) {
             const lines = csvText.trim().split('\n');
             const headers = lines[0].split(',').map(h => h.trim());
             
-            // THÊM: Check required headers
             const requiredHeaders = ['score', 'coins_collected', 'ufos_shot', 'bullets_fired', 'game_duration', 'death_reason'];
             if (!requiredHeaders.every(h => headers.includes(h))) {
                 throw new Error('CSV missing required headers');
@@ -341,7 +388,6 @@
 
             const games = [];
             const deathReasons = {};
-            const scoreDistribution = {};
             
             for (let i = 1; i < lines.length; i++) {
                 const values = lines[i].split(',').map(v => v.trim());
@@ -349,14 +395,12 @@
                 
                 headers.forEach((header, index) => {
                     let value = values[index];
-                    // Convert numeric values
                     if (['score', 'coins_collected', 'ufos_shot', 'bullets_fired', 'game_duration', 'pipes_passed'].includes(header)) {
                         value = parseInt(value) || 0;
                     }
                     game[header] = value;
                 });
                 
-                // Map CSV columns to expected field names
                 const mappedGame = {
                     score: game.score || 0,
                     coins: game.coins_collected || 0,
@@ -370,40 +414,19 @@
                 
                 games.push(mappedGame);
                 
-                // Count death reasons
                 const rawReason = mappedGame.death_reason;
                 if (rawReason && rawReason !== 'unknown') {
                     const reason = rawReason;
                     deathReasons[reason] = (deathReasons[reason] || 0) + 1;
                 }
-                
-                // Create score distribution
-                const score = mappedGame.score || 0;
-                let bucket;
-
-                if (score >= 50) bucket = '50+';
-                else if (score >= 45) bucket = '45-49';
-                else if (score >= 40) bucket = '40-44';
-                else if (score >= 35) bucket = '35-39';
-                else if (score >= 30) bucket = '30-34';
-                else if (score >= 25) bucket = '25-29';
-                else if (score >= 20) bucket = '20-24';
-                else if (score >= 15) bucket = '15-19';
-                else if (score >= 10) bucket = '10-14';
-                else if (score >= 5)  bucket = '5-9';
-                else bucket = '0-4';
-                
-                scoreDistribution[bucket] = (scoreDistribution[bucket] || 0) + 1;
             }
             
-            // Calculate statistics
             const totalGames = games.length;
             const avgScore = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.score || 0), 0) / totalGames) : 0;
             const maxScore = totalGames > 0 ? Math.max(...games.map(game => game.score || 0)) : 0;
             const avgDuration = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.duration || 0), 0) / totalGames) : 0;
             const avgBullets = totalGames > 0 ? Math.round(games.reduce((sum, game) => sum + (game.bullets || 0), 0) / totalGames) : 0;
             
-            // Get recent games (last 10)
             const recentGames = games.slice(-100).reverse();
             
             return {
@@ -414,12 +437,10 @@
                 avg_bullets: avgBullets,
                 death_reasons: deathReasons,
                 recent_games: recentGames,
-                score_distribution: scoreDistribution,
                 all_games: games
             };
         }
 
-        // THÊM: Function để load sample data
         function loadSampleData() {
             const sampleData = {
                 total_games: 0,
@@ -429,7 +450,6 @@
                 avg_bullets: 0,
                 death_reasons: {},
                 recent_games: [],
-                score_distribution: {},
                 all_games: []
             };
             
@@ -437,7 +457,6 @@
             updateConnectionStatus('error', '❌ No data available. Connect to the python server first or ensure CSV file exists!');
         }
 
-        // THÊM: Function để update connection status
         function updateConnectionStatus(type, message) {
             const statusDiv = document.getElementById('connectionStatus');
             const statusClass = type === 'error' ? 'info-banner warning' : 'info-banner';
@@ -449,11 +468,10 @@
             `;
         }
 
-        // Fetch and display analytics data
         async function loadAnalytics() {
             try {
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 60000);  // Timeout 60s
+                const timeoutId = setTimeout(() => controller.abort(), 60000); 
                 
                 const response = await fetch(API_URL, { signal: controller.signal });
                 clearTimeout(timeoutId);
@@ -470,13 +488,13 @@
             } catch (error) {
                 console.error('⚠️ Cannot connect to Flask server:', error);
                 updateConnectionStatus('error', '❌ Server offline or unreachable. Trying CSV fallback...');
-                loadFromCSV(); // Fallback to CSV
+                loadFromCSV(); 
             }
         }
 
-        // SỬA: Function chính để update dashboard
         function updateDashboard(data) {
-            // Update stats grid
+            globalGamesData = data.all_games || [];
+
             document.getElementById('statsGrid').innerHTML = `
                 <div class="stat-card">
                     <h3>Total Games Played</h3>
@@ -500,150 +518,170 @@
                 </div>
             `;
 
-            // Create charts
+            populateScoreFilterOptions(globalGamesData);
             createDeathReasonsChart(data.death_reasons || {});
-            createScoreHistogram(data.score_distribution || {});
-            createScatterPlots(data.all_games || []);
+            
+            updateScoreHistogram();
+            updateScatterPlot();
+            updateCumulativeAreaChart();
+            
             updateRecentGamesTable(data.recent_games || []);
         }
 
- function createDeathReasonsChart(deathReasons) {
-    const ctx = document.getElementById('deathChart').getContext('2d');
-    
-    if (deathChart) {
-        deathChart.destroy();
-    }
-
-    // Remove unknown
-    if (deathReasons['unknown']) {
-        delete deathReasons['unknown'];
-    }
-
-    // Sort entries by count descending
-    const sortedEntries = Object.entries(deathReasons)
-        .sort((a, b) => b[1] - a[1]); // b -> a = descending order
-
-    // If no data left
-    if (sortedEntries.length === 0) {
-        deathChart = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: ['No Data'],
-                datasets: [{
-                    data: [1],
-                    backgroundColor: ['#95a5a6'],
-                    borderColor: 'white',
-                    borderWidth: 2
-                }]
-            },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: { enabled: false }
-                }
-            }
-        });
-        return;
-    }
-
-    // Build sorted labels + data + colors
-    const labels = sortedEntries.map(([reason]) =>
-        reason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
-    );
-
-    const data = sortedEntries.map(entry => entry[1]);
-
-    const backgroundColors = sortedEntries.map(([reason]) =>
-        chartColors[reason] || chartColors.unknown
-    );
-
-    // Create sorted doughnut chart
-    deathChart = new Chart(ctx, {
-        type: 'doughnut',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: data,
-                backgroundColor: backgroundColors,
-                borderColor: 'white',
-                borderWidth: 2,
-                hoverOffset: 10
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            rotation: -90 * (Math.PI / 180), // start at top (optional)
-            plugins: {
-                legend: {
-                    position: 'right',
-                    labels: {
-                        padding: 20,
-                        usePointStyle: true,
-                        pointStyle: 'circle'
-                    }
-                },
-                tooltip: {
-                    callbacks: {
-                        label: function(context) {
-                            const label = context.label || '';
-                            const value = context.raw || 0;
-                            const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                            const percentage = Math.round((value / total) * 100);
-                            return `${label}: ${value} (${percentage}%)`;
-                        }
-                    }
-                }
-            },
-            cutout: '60%'
-        }
-    });
-}
-
-
-        function createScoreHistogram(scoreBuckets) {
-            const ctx = document.getElementById('scoreChart').getContext('2d');
+        function createDeathReasonsChart(deathReasons) {
+            const ctx = document.getElementById('deathChart').getContext('2d');
             
-            if (scoreChart) {
-                scoreChart.destroy();
+            if (deathChart) {
+                deathChart.destroy();
             }
 
-            // Kiểm tra nếu có dữ liệu
-            if (Object.keys(scoreBuckets).length === 0) {
-                scoreChart = new Chart(ctx, {
-                    type: 'bar',
+            if (deathReasons['unknown']) {
+                delete deathReasons['unknown'];
+            }
+
+            const sortedEntries = Object.entries(deathReasons)
+                .sort((a, b) => b[1] - a[1]);
+
+            if (sortedEntries.length === 0) {
+                deathChart = new Chart(ctx, {
+                    type: 'doughnut',
                     data: {
                         labels: ['No Data'],
                         datasets: [{
-                            data: [0],
-                            backgroundColor: 'rgba(102, 126, 234, 0.7)'
+                            data: [1],
+                            backgroundColor: ['#95a5a6'],
+                            borderColor: 'white',
+                            borderWidth: 2
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
-                        plugins: { legend: { display: false } },
-                        scales: {
-                            y: { beginAtZero: true },
-                            x: { display: false }
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
                         }
                     }
                 });
                 return;
             }
 
-            // Tách và sắp xếp các buckets một cách thông minh
+            const labels = sortedEntries.map(([reason]) =>
+                reason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            );
+            const data = sortedEntries.map(entry => entry[1]);
+            const backgroundColors = sortedEntries.map(([reason]) =>
+                chartColors[reason] || chartColors.unknown
+            );
+
+            deathChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: 'white',
+                        borderWidth: 2,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    rotation: -90 * (Math.PI / 180),
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                padding: 20,
+                                usePointStyle: true,
+                                pointStyle: 'circle'
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = Math.round((value / total) * 100);
+                                    return `${label}: ${value} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '60%'
+                }
+            });
+        }
+
+        function populateScoreFilterOptions(games) {
+            const select = document.getElementById('scoreFilter');
+            select.innerHTML = '<option value="All">All Death Reasons</option>';
+            
+            const reasons = new Set();
+            games.forEach(g => {
+                if (g.death_reason && g.death_reason !== 'unknown') {
+                    reasons.add(g.death_reason);
+                }
+            });
+            
+            Array.from(reasons).sort().forEach(reason => {
+                const opt = document.createElement('option');
+                opt.value = reason;
+                opt.textContent = reason.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+                select.appendChild(opt);
+            });
+        }
+
+        function updateScoreHistogram() {
+            const filterValue = document.getElementById('scoreFilter').value;
+            
+            let filteredGames = globalGamesData;
+            if (filterValue !== 'All') {
+                filteredGames = globalGamesData.filter(g => g.death_reason === filterValue);
+            }
+
+            // Luôn khởi tạo trước tất cả các nhóm điểm (dù không có dữ liệu vẫn hiển thị thanh giá trị 0)
+            const scoreBuckets = {
+                '0-4': 0, '5-9': 0, '10-14': 0, '15-19': 0, '20-24': 0,
+                '25-29': 0, '30-34': 0, '35-39': 0, '40-44': 0, '45-49': 0, '50+': 0
+            };
+
+            filteredGames.forEach(game => {
+                const score = game.score || 0;
+                let bucket;
+                if (score >= 50) bucket = '50+';
+                else if (score >= 45) bucket = '45-49';
+                else if (score >= 40) bucket = '40-44';
+                else if (score >= 35) bucket = '35-39';
+                else if (score >= 30) bucket = '30-34';
+                else if (score >= 25) bucket = '25-29';
+                else if (score >= 20) bucket = '20-24';
+                else if (score >= 15) bucket = '15-19';
+                else if (score >= 10) bucket = '10-14';
+                else if (score >= 5)  bucket = '5-9';
+                else bucket = '0-4';
+                
+                scoreBuckets[bucket]++;
+            });
+
+            createScoreHistogram(scoreBuckets);
+        }
+
+        function createScoreHistogram(scoreBuckets) {
+            const ctx = document.getElementById('scoreChart').getContext('2d');
+            if (scoreChart) {
+                scoreChart.destroy();
+            }
+
             const sortedEntries = Object.entries(scoreBuckets).sort((a, b) => {
                 const getBucketValue = (bucket) => {
                     if (bucket === '50+') return 999;
-                    if (bucket.includes('-')) {
-                        return parseInt(bucket.split('-')[0]);
-                    }
+                    if (bucket.includes('-')) return parseInt(bucket.split('-')[0]);
                     return parseInt(bucket);
                 };
-                
                 return getBucketValue(a[0]) - getBucketValue(b[0]);
             });
 
@@ -661,91 +699,74 @@
                         borderColor: 'rgba(102, 126, 234, 1)',
                         borderWidth: 1,
                         borderRadius: 5,
-                        borderSkipped: false,
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            display: false
-                        },
+                        legend: { display: false },
                         tooltip: {
                             callbacks: {
-                                label: function(context) {
-                                    return `Games: ${context.raw}`;
-                                }
+                                label: function(context) { return `Games: ${context.raw}`; }
                             }
                         }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Number of Games'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
+                            title: { display: true, text: 'Number of Games' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' },
+                            ticks: {
+                                // Xóa bỏ stepSize: 1 để Chart.js tự động nhảy các bước chuẩn (5, 10, 20...)
+                                precision: 0 // Đảm bảo luôn sử dụng số nguyên
                             }
                         },
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Score Range'
-                            },
-                            grid: {
-                                display: false
-                            }
+                            title: { display: true, text: 'Score Range' },
+                            grid: { display: false }
                         }
                     }
                 }
             });
         }
 
-        function createScatterPlots(games) {
-            // Prepare data for scatter plots
-            const scoreBulletsData = games.map(game => ({
-                x: game.bullets || 0,
-                y: game.score || 0
+        function updateScatterPlot() {
+            const scatterX = document.getElementById('scatterX');
+            const scatterY = document.getElementById('scatterY');
+            
+            const xParam = scatterX.value;
+            const yParam = scatterY.value;
+            
+            const xLabel = scatterX.options[scatterX.selectedIndex].text;
+            const yLabel = scatterY.options[scatterY.selectedIndex].text;
+            
+            const dataMap = globalGamesData.map(game => ({
+                x: game[xParam] || 0,
+                y: game[yParam] || 0
             }));
 
-            const ufoCoinData = games.map(game => ({
-                x: game.coins || 0,
-                y: game.ufos || 0
-            }));
-
-            // Score vs Bullets Fired Scatter Plot
-            const scoreBulletsCtx = document.getElementById('scoreBulletsChart').getContext('2d');
-            if (scoreBulletsChart) {
-                scoreBulletsChart.destroy();
+            const ctx = document.getElementById('dynamicScatterChart').getContext('2d');
+            if (dynamicScatterChart) {
+                dynamicScatterChart.destroy();
             }
 
-            // UFOs vs Coins Scatter Plot
-            const ufoCoinCtx = document.getElementById('ufoCoinChart').getContext('2d');
-            if (ufoCoinChart) {
-                ufoCoinChart.destroy();
-            }
-
-            // Kiểm tra nếu có dữ liệu
-            if (games.length === 0) {
-                createEmptyScatterChart(scoreBulletsCtx, 'Score vs Bullets Fired');
-                createEmptyScatterChart(ufoCoinCtx, 'UFOs Shot vs Coins Collected');
+            if (dataMap.length === 0) {
+                createEmptyScatterChart(ctx, `${yLabel} vs ${xLabel}`);
                 return;
             }
 
-            scoreBulletsChart = new Chart(scoreBulletsCtx, {
+            dynamicScatterChart = new Chart(ctx, {
                 type: 'scatter',
                 data: {
                     datasets: [{
                         label: 'Games',
-                        data: scoreBulletsData,
+                        data: dataMap,
                         backgroundColor: 'rgba(255, 99, 132, 0.6)',
                         borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
+                        pointRadius: 6,
+                        pointHoverRadius: 8
                     }]
                 },
                 options: {
@@ -755,122 +776,180 @@
                         tooltip: {
                             callbacks: {
                                 label: function(context) {
-                                    return `Score: ${context.parsed.y}, Bullets: ${context.parsed.x}`;
+                                    return `${yLabel}: ${context.parsed.y}, ${xLabel}: ${context.parsed.x}`;
                                 }
                             }
                         }
                     },
                     scales: {
                         x: {
-                            title: {
-                                display: true,
-                                text: 'Bullets Fired'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
+                            title: { display: true, text: xLabel },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' }
                         },
                         y: {
-                            title: {
-                                display: true,
-                                text: 'Score'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        }
-                    }
-                }
-            });
-
-            ufoCoinChart = new Chart(ufoCoinCtx, {
-                type: 'scatter',
-                data: {
-                    datasets: [{
-                        label: 'Games',
-                        data: ufoCoinData,
-                        backgroundColor: 'rgba(75, 192, 192, 0.6)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1,
-                        pointRadius: 4,
-                        pointHoverRadius: 6
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    return `UFOs: ${context.parsed.y}, Coins: ${context.parsed.x}`;
-                                }
-                            }
-                        }
-                    },
-                    scales: {
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Coins Collected'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
-                        },
-                        y: {
-                            title: {
-                                display: true,
-                                text: 'UFOs Shot'
-                            },
-                            grid: {
-                                color: 'rgba(0, 0, 0, 0.1)'
-                            }
+                            title: { display: true, text: yLabel },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' }
                         }
                     }
                 }
             });
         }
 
-        // THÊM: Function tạo scatter chart rỗng
+        function updateCumulativeAreaChart() {
+            const filterInput = document.getElementById('areaDaysFilter').value;
+            const daysLimit = filterInput ? parseInt(filterInput) : null;
+            
+            const validGames = globalGamesData.filter(g => g.date && g.date !== 'N/A');
+            
+            if (validGames.length === 0) {
+                createEmptyLineChart('cumulativeAreaChart', 'No Data');
+                return;
+            }
+
+            const dailyCounts = {};
+            let minDate = new Date('9999-12-31');
+            let maxDate = new Date('1970-01-01');
+
+            validGames.forEach(g => {
+                const d = new Date(g.date);
+                if (isNaN(d.getTime())) return;
+                
+                const dateStr = d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+                dailyCounts[dateStr] = (dailyCounts[dateStr] || 0) + 1;
+                
+                const dayOnly = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+                if (dayOnly < minDate) minDate = dayOnly;
+                if (dayOnly > maxDate) maxDate = dayOnly;
+            });
+
+            const allDays = [];
+            const counts = [];
+            let currentDay = new Date(minDate);
+            
+            while (currentDay <= maxDate) {
+                const dateStr = currentDay.getFullYear() + '-' + String(currentDay.getMonth()+1).padStart(2, '0') + '-' + String(currentDay.getDate()).padStart(2, '0');
+                allDays.push(dateStr);
+                counts.push(dailyCounts[dateStr] || 0);
+                currentDay.setDate(currentDay.getDate() + 1);
+            }
+
+            const cumulativeCounts = [];
+            let sum = 0;
+            for (let c of counts) {
+                sum += c;
+                cumulativeCounts.push(sum);
+            }
+
+            let finalLabels = allDays;
+            let finalData = cumulativeCounts;
+            
+            if (daysLimit && daysLimit > 0 && allDays.length > daysLimit) {
+                finalLabels = allDays.slice(-daysLimit);
+                finalData = cumulativeCounts.slice(-daysLimit);
+            }
+
+            const ctx = document.getElementById('cumulativeAreaChart').getContext('2d');
+            if (cumulativeAreaChart) {
+                cumulativeAreaChart.destroy();
+            }
+
+            cumulativeAreaChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: finalLabels,
+                    datasets: [{
+                        label: 'Total Sessions',
+                        data: finalData,
+                        fill: true,
+                        backgroundColor: 'rgba(118, 75, 162, 0.2)',
+                        borderColor: 'rgba(118, 75, 162, 1)',
+                        tension: 0.3,
+                        pointRadius: 0, // Ẩn hoàn toàn point bubble
+                        pointHoverRadius: 6 // Giữ lại hover để người dùng vẫn soi được điểm ảnh
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                title: function(context) {
+                                    return context[0].label; 
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                autoSkip: true,
+                                maxTicksLimit: 12,
+                                maxRotation: 0,
+                                callback: function(value, index, ticks) {
+                                    const dateStr = this.getLabelForValue(value);
+                                    const d = new Date(dateStr);
+                                    const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+                                    
+                                    // Chống trùng lặp hiển thị nhiều tháng giống nhau
+                                    if (index > 0) {
+                                        const prevDateStr = this.getLabelForValue(ticks[index - 1].value);
+                                        const prevD = new Date(prevDateStr);
+                                        const prevLabel = prevD.toLocaleString('en-US', { month: 'short', year: 'numeric' });
+                                        if (label === prevLabel) {
+                                            return null; 
+                                        }
+                                    }
+                                    return label;
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: { display: true, text: 'Total Sessions' },
+                            grid: { color: 'rgba(0, 0, 0, 0.1)' }
+                        }
+                    }
+                }
+            });
+        }
+
         function createEmptyScatterChart(ctx, title) {
             new Chart(ctx, {
                 type: 'scatter',
                 data: {
                     datasets: [{
-                        label: 'No Data',
-                        data: [{x: 0, y: 0}],
-                        backgroundColor: 'rgba(200, 200, 200, 0.1)',
-                        pointRadius: 0
+                        label: 'No Data', data: [{x: 0, y: 0}],
+                        backgroundColor: 'rgba(200, 200, 200, 0.1)', pointRadius: 0
                     }]
                 },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
                     plugins: {
-                        title: {
-                            display: true,
-                            text: title,
-                            font: { size: 16 }
-                        },
+                        title: { display: true, text: title, font: { size: 16 } },
                         legend: { display: false }
                     },
-                    scales: {
-                        x: { display: false },
-                        y: { display: false }
-                    }
+                    scales: { x: { display: false }, y: { display: false } }
                 }
             });
         }
 
+        function createEmptyLineChart(canvasId, title) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            if (cumulativeAreaChart) cumulativeAreaChart.destroy();
+            createEmptyScatterChart(ctx, title);
+        }
+
         function updateRecentGamesTable(recentGames) {
-            // === SỬA: Sort lại theo End Time (mới nhất lên đầu) ===
-            // Đảm bảo thứ tự luôn đúng dù backend trả về gì hoặc fallback CSV
-            recentGames = [...recentGames]; // copy array để không làm thay đổi dữ liệu gốc
+            recentGames = [...recentGames]; 
             recentGames.sort((a, b) => {
                 const dateA = new Date(a.date || a.endTime || 0);
                 const dateB = new Date(b.date || b.endTime || 0);
-                return dateB.getTime() - dateA.getTime(); // DESC = mới nhất trước
+                return dateB.getTime() - dateA.getTime();
             });
 
             const tbody = document.getElementById('recentGamesBody');
@@ -894,7 +973,6 @@
                     <td>${game.bullets || 0}</td>
                     <td>${game.duration || 0}</td>
                     <td>${(game.death_reason || 'unknown').replace(/_/g, ' ')}</td>
-                    <!-- === SỬA: Hiển thị múi giờ đầy đủ (AEDT / UTC / v.v.) === -->
                     <td>${game.date ? new Date(game.date).toLocaleString('en-AU', {
                         year: 'numeric',
                         month: 'numeric',
@@ -909,15 +987,36 @@
             `).join('');
         }
 
-        // Load analytics when page loads
-        document.addEventListener('DOMContentLoaded', loadAnalytics);
+        document.addEventListener('DOMContentLoaded', () => {
+            loadAnalytics();
 
-        // Clean up charts when page is unloaded
+            document.getElementById('scoreFilter').addEventListener('change', updateScoreHistogram);
+
+            const scatterX = document.getElementById('scatterX');
+            const scatterY = document.getElementById('scatterY');
+            
+            const handleScatterChange = (e) => {
+                if (scatterX.value === scatterY.value) {
+                    const options = ['bullets', 'score', 'coins', 'ufos', 'duration'];
+                    const changedId = e.target.id;
+                    const otherSelect = changedId === 'scatterX' ? scatterY : scatterX;
+                    
+                    otherSelect.value = options.find(opt => opt !== e.target.value);
+                }
+                updateScatterPlot();
+            };
+
+            scatterX.addEventListener('change', handleScatterChange);
+            scatterY.addEventListener('change', handleScatterChange);
+
+            document.getElementById('areaDaysFilter').addEventListener('input', updateCumulativeAreaChart);
+        });
+
         window.addEventListener('beforeunload', () => {
             if (deathChart) deathChart.destroy();
             if (scoreChart) scoreChart.destroy();
-            if (scoreBulletsChart) scoreBulletsChart.destroy();
-            if (ufoCoinChart) ufoCoinChart.destroy();
+            if (dynamicScatterChart) dynamicScatterChart.destroy();
+            if (cumulativeAreaChart) cumulativeAreaChart.destroy();
         });
     </script>
 </body>
