@@ -310,14 +310,16 @@
             </div>
             
             <div class="chart-box">
-                <h2 id="areaChartTitle">Daily Game Sessions</h2>
+                <h2 id="areaChartTitle">Cumulative Game Sessions</h2>
                 <div class="chart-controls">
                     <select id="areaModeSelect">
-                        <option value="daily" selected>Daily Sessions</option>
-                        <option value="cumulative">Cumulative (Total)</option>
+                        <option value="daily">Daily Sessions</option>
+                        <option value="cumulative" selected>Cumulative (Total)</option>
                     </select>
                     <label style="font-size: 0.9em; color: #7f8c8d; font-weight: bold; margin-left: 10px;">Last Days: <span id="daysSliderValue" style="color: #2c3e50;">All</span></label>
+                    <button id="btnDecreaseDays" style="border: 1px solid #ccd1d9; border-radius: 6px; background: #f8f9fa; cursor: pointer; color: #2c3e50; padding: 4px 8px; margin-left: 5px;">&lt;</button>
                     <input type="range" id="areaDaysFilter" min="1" max="100" value="100" style="width: 120px; cursor: pointer; vertical-align: middle;">
+                    <button id="btnIncreaseDays" style="border: 1px solid #ccd1d9; border-radius: 6px; background: #f8f9fa; cursor: pointer; color: #2c3e50; padding: 4px 8px;">&gt;</button>
                 </div>
                 <div class="chart-container">
                     <canvas id="cumulativeAreaChart"></canvas>
@@ -652,7 +654,6 @@
                 filteredGames = globalGamesData.filter(g => g.death_reason === filterValue);
             }
 
-            // Đã mở rộng các mốc tới 70+ theo yêu cầu
             const scoreBuckets = {
                 '0-4': 0, '5-9': 0, '10-14': 0, '15-19': 0, '20-24': 0,
                 '25-29': 0, '30-34': 0, '35-39': 0, '40-44': 0, '45-49': 0, 
@@ -787,8 +788,8 @@
                         backgroundColor: 'rgba(255, 99, 132, 0.6)',
                         borderColor: 'rgba(255, 99, 132, 1)',
                         borderWidth: 1,
-                        pointRadius: 6,
-                        pointHoverRadius: 8
+                        pointRadius: 4,
+                        pointHoverRadius: 6
                     }]
                 },
                 options: {
@@ -920,7 +921,7 @@
                         borderColor: 'rgba(118, 75, 162, 1)',
                         borderWidth: 2,
                         stepped: true, // Step Line Chart
-                        // Cấu hình Bubble chỉ hiện khi Hover
+                        // Cấu hình Bubble chỉ hiện khi Hover / Tương tác
                         pointRadius: 0, 
                         pointHoverRadius: 6,
                         pointHoverBackgroundColor: 'rgba(118, 75, 162, 1)', 
@@ -932,11 +933,14 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    // THÊM: interaction mode index giúp hiện điểm & tooltip dọc theo trục Y dù hover bất kì đâu trên cột X
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
-                            mode: 'index',
-                            intersect: false,
                             callbacks: {
                                 title: function(context) {
                                     return context[0].label; 
@@ -1076,6 +1080,23 @@
             // Gán event listener cho nút dropdown mode và slider filter
             document.getElementById('areaDaysFilter').addEventListener('input', updateCumulativeAreaChart);
             document.getElementById('areaModeSelect').addEventListener('change', updateCumulativeAreaChart);
+
+            // Gán event listener cho các nút < và > cạnh Slider
+            document.getElementById('btnDecreaseDays').addEventListener('click', () => {
+                const slider = document.getElementById('areaDaysFilter');
+                if (parseInt(slider.value) > parseInt(slider.min)) {
+                    slider.value = parseInt(slider.value) - 1;
+                    updateCumulativeAreaChart();
+                }
+            });
+
+            document.getElementById('btnIncreaseDays').addEventListener('click', () => {
+                const slider = document.getElementById('areaDaysFilter');
+                if (parseInt(slider.value) < parseInt(slider.max)) {
+                    slider.value = parseInt(slider.value) + 1;
+                    updateCumulativeAreaChart();
+                }
+            });
         });
 
         window.addEventListener('beforeunload', () => {
