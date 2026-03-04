@@ -128,7 +128,7 @@
             flex-wrap: wrap;
         }
 
-        .chart-controls select, .chart-controls input {
+        .chart-controls select, .chart-controls input[type="number"] {
             padding: 8px 12px;
             border: 1px solid #ccd1d9;
             border-radius: 6px;
@@ -142,6 +142,11 @@
         .chart-controls select:focus, .chart-controls input:focus {
             border-color: #667eea;
             box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+        }
+
+        /* Thêm chút style cho range slider nhìn đẹp hơn */
+        .chart-controls input[type="range"] {
+            accent-color: #667eea;
         }
 
         .recent-games {
@@ -305,10 +310,14 @@
             </div>
             
             <div class="chart-box">
-                <h2>Daily Game Sessions</h2>
+                <h2 id="areaChartTitle">Daily Game Sessions</h2>
                 <div class="chart-controls">
-                    <label style="font-size: 0.9em; color: #7f8c8d; font-weight: bold;">Last N Days:</label>
-                    <input type="number" id="areaDaysFilter" placeholder="All" min="1" style="width: 100px;">
+                    <select id="areaModeSelect">
+                        <option value="daily" selected>Daily Sessions</option>
+                        <option value="cumulative">Cumulative (Total)</option>
+                    </select>
+                    <label style="font-size: 0.9em; color: #7f8c8d; font-weight: bold; margin-left: 10px;">Last Days: <span id="daysSliderValue" style="color: #2c3e50;">All</span></label>
+                    <input type="range" id="areaDaysFilter" min="1" max="100" value="100" style="width: 120px; cursor: pointer; vertical-align: middle;">
                 </div>
                 <div class="chart-container">
                     <canvas id="cumulativeAreaChart"></canvas>
@@ -643,16 +652,21 @@
                 filteredGames = globalGamesData.filter(g => g.death_reason === filterValue);
             }
 
-            // Luôn khởi tạo trước tất cả các nhóm điểm (dù không có dữ liệu vẫn hiển thị thanh giá trị 0)
+            // Đã mở rộng các mốc tới 70+ theo yêu cầu
             const scoreBuckets = {
                 '0-4': 0, '5-9': 0, '10-14': 0, '15-19': 0, '20-24': 0,
-                '25-29': 0, '30-34': 0, '35-39': 0, '40-44': 0, '45-49': 0, '50+': 0
+                '25-29': 0, '30-34': 0, '35-39': 0, '40-44': 0, '45-49': 0, 
+                '50-54': 0, '55-59': 0, '60-64': 0, '65-69': 0, '70+': 0
             };
 
             filteredGames.forEach(game => {
                 const score = game.score || 0;
                 let bucket;
-                if (score >= 50) bucket = '50+';
+                if (score >= 70) bucket = '70+';
+                else if (score >= 65) bucket = '65-69';
+                else if (score >= 60) bucket = '60-64';
+                else if (score >= 55) bucket = '55-59';
+                else if (score >= 50) bucket = '50-54';
                 else if (score >= 45) bucket = '45-49';
                 else if (score >= 40) bucket = '40-44';
                 else if (score >= 35) bucket = '35-39';
@@ -678,7 +692,7 @@
 
             const sortedEntries = Object.entries(scoreBuckets).sort((a, b) => {
                 const getBucketValue = (bucket) => {
-                    if (bucket === '50+') return 999;
+                    if (bucket === '70+') return 999;
                     if (bucket.includes('-')) return parseInt(bucket.split('-')[0]);
                     return parseInt(bucket);
                 };
@@ -687,6 +701,14 @@
 
             const sortedLabels = sortedEntries.map(entry => entry[0]);
             const sortedData = sortedEntries.map(entry => entry[1]);
+
+            // Logic tự động tính bước nhảy cho trục Y
+            const maxDataValue = Math.max(...sortedData, 0);
+            let calculatedStepSize = 1;
+            if (maxDataValue > 100) calculatedStepSize = 20;
+            else if (maxDataValue > 50) calculatedStepSize = 10;
+            else if (maxDataValue > 20) calculatedStepSize = 5;
+            else if (maxDataValue > 10) calculatedStepSize = 2;
 
             scoreChart = new Chart(ctx, {
                 type: 'bar',
@@ -718,8 +740,8 @@
                             title: { display: true, text: 'Number of Games' },
                             grid: { color: 'rgba(0, 0, 0, 0.1)' },
                             ticks: {
-                                // Xóa bỏ stepSize: 1 để Chart.js tự động nhảy các bước chuẩn (5, 10, 20...)
-                                precision: 0 // Đảm bảo luôn sử dụng số nguyên
+                                stepSize: calculatedStepSize,
+                                precision: 0 
                             }
                         },
                         x: {
@@ -796,9 +818,11 @@
         }
 
         function updateCumulativeAreaChart() {
-            const filterInput = document.getElementById('areaDaysFilter').value;
-            const daysLimit = filterInput ? parseInt(filterInput) : null;
+            const mode = document.getElementById('areaModeSelect').value;
             
+            // Cập nhật tiêu đề dựa vào mode
+            document.getElementById('areaChartTitle').innerText = mode === 'daily' ? 'Daily Game Sessions' : 'Cumulative Game Sessions';
+
             const validGames = globalGamesData.filter(g => g.date && g.date !== 'N/A');
             
             if (validGames.length === 0) {
@@ -833,12 +857,50 @@
                 currentDay.setDate(currentDay.getDate() + 1);
             }
 
+            let finalData;
+            let chartLabel;
+            let yAxisLabel;
+            
+            if (mode === 'daily') {
+                finalData = counts;
+                chartLabel = 'Daily Sessions';
+                yAxisLabel = 'Daily Sessions';
+            } else {
+                const cumulativeCounts = [];
+                let sum = 0;
+                for (let c of counts) {
+                    sum += c;
+                    cumulativeCounts.push(sum);
+                }
+                finalData = cumulativeCounts;
+                chartLabel = 'Total Sessions';
+                yAxisLabel = 'Total Sessions';
+            }
+
+            const slider = document.getElementById('areaDaysFilter');
+            const sliderLabel = document.getElementById('daysSliderValue');
+
+            // Khởi tạo slider value & max dựa theo tổng ngày nếu cần thiết
+            const totalDays = allDays.length || 1;
+            if (slider.getAttribute('data-total') !== totalDays.toString()) {
+                slider.max = totalDays;
+                slider.value = totalDays;
+                slider.setAttribute('data-total', totalDays);
+            }
+
+            let daysLimit = parseInt(slider.value);
+            if (daysLimit === totalDays) {
+                sliderLabel.innerText = "All";
+                daysLimit = null; // Hiện toàn bộ
+            } else {
+                sliderLabel.innerText = daysLimit;
+            }
+
             let finalLabels = allDays;
-            let finalData = counts; // Dùng trực tiếp số liệu đếm theo ngày, không cộng dồn nữa
             
             if (daysLimit && daysLimit > 0 && allDays.length > daysLimit) {
                 finalLabels = allDays.slice(-daysLimit);
-                finalData = counts.slice(-daysLimit);
+                finalData = finalData.slice(-daysLimit);
             }
 
             const ctx = document.getElementById('cumulativeAreaChart').getContext('2d');
@@ -851,14 +913,20 @@
                 data: {
                     labels: finalLabels,
                     datasets: [{
-                        label: 'Daily Sessions',
+                        label: chartLabel,
                         data: finalData,
-                        fill: false, // Bỏ thuộc tính fill để chuyển từ Area thành Line chart
-                        backgroundColor: 'rgba(118, 75, 162, 0.2)',
+                        fill: mode === 'cumulative',
+                        backgroundColor: 'rgba(118, 75, 162, 0.1)',
                         borderColor: 'rgba(118, 75, 162, 1)',
-                        tension: 0.3,
+                        borderWidth: 2,
+                        stepped: true, // Step Line Chart
+                        // Cấu hình Bubble chỉ hiện khi Hover
                         pointRadius: 0, 
-                        pointHoverRadius: 6 
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: 'rgba(118, 75, 162, 1)', 
+                        pointHoverBorderColor: '#fff', 
+                        pointHoverBorderWidth: 2, 
+                        pointHitRadius: 10 
                     }]
                 },
                 options: {
@@ -888,7 +956,6 @@
                                     const d = new Date(dateStr);
                                     const label = d.toLocaleString('en-US', { month: 'short', year: 'numeric' });
                                     
-                                    // Không hiển thị nhãn Nov 2025
                                     if (label === 'Nov 2025') {
                                         return null;
                                     }
@@ -907,7 +974,7 @@
                         },
                         y: {
                             beginAtZero: true,
-                            title: { display: true, text: 'Daily Sessions' }, // Cập nhật tên trục Y
+                            title: { display: true, text: yAxisLabel }, 
                             grid: { color: 'rgba(0, 0, 0, 0.1)' }
                         }
                     }
@@ -1006,7 +1073,9 @@
             scatterX.addEventListener('change', handleScatterChange);
             scatterY.addEventListener('change', handleScatterChange);
 
+            // Gán event listener cho nút dropdown mode và slider filter
             document.getElementById('areaDaysFilter').addEventListener('input', updateCumulativeAreaChart);
+            document.getElementById('areaModeSelect').addEventListener('change', updateCumulativeAreaChart);
         });
 
         window.addEventListener('beforeunload', () => {
