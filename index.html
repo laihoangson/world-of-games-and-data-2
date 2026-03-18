@@ -133,7 +133,7 @@
             margin-top: 40px;
             opacity: 0;
             transform: translateY(20px);
-            /* Delay set to 2s so buttons appear 2 seconds after typing starts */
+            /* Delay set to 1s so buttons appear 1 seconds after typing starts */
             animation: buttonEntrance 1s ease-out 1s forwards; 
         }
 
@@ -171,9 +171,58 @@
 
         /* Responsive adjustments */
         @media (max-width: 768px) {
-            .neon-title { font-size: 2.5rem; animation: glitch 725ms infinite; }
+            /* Fix lỗi layout Navbar trên Mobile */
+            .navbar {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                padding: 15px 10px !important;
+                background: rgba(0, 0, 0, 0.7); /* Thêm nền mờ để dễ đọc chữ */
+                position: relative; 
+            }
+            .navbar-left, .navbar-right {
+                display: flex !important;
+                flex-direction: column !important;
+                align-items: center !important;
+                width: 100% !important;
+            }
+            .logo {
+                font-size: 1.5rem !important;
+                text-align: center !important;
+                margin-bottom: 15px !important;
+                white-space: normal !important; /* Tránh bị vỡ chữ logo */
+            }
+            .nav-links {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                justify-content: center !important;
+                gap: 15px !important;
+                padding: 0 !important;
+                margin: 0 0 15px 0 !important;
+            }
+            .nav-links li, .nav-icons li {
+                list-style: none;
+            }
+            .search-container {
+                width: 100% !important;
+                max-width: 300px !important;
+                margin-bottom: 15px !important;
+            }
+            .search-input {
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+            .nav-icons {
+                display: flex !important;
+                justify-content: center !important;
+                gap: 25px !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            /* Main content mobile adjustments */
+            .neon-title { font-size: 2.5rem; animation: glitch 725ms infinite; margin-top: 20px; }
             .home-subtitle { font-size: 0.9rem; white-space: normal; border-right: none; width: auto; animation: none; opacity: 0; animation: simpleFade 2s 0s forwards; }
-            /* Also updated delay here to 2s for mobile */
             .cta-container { flex-direction: column; gap: 10px; animation-delay: 2s; } 
         }
 
