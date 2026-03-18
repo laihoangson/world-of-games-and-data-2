@@ -481,44 +481,39 @@
                 grid-template-columns: 1fr;
             }
             
-            /* Navbar mobile GIỐNG HỆT code ở trên (home page) */
-            /* Chỉ chỉnh phần mobile navbar, giữ nguyên 100% code còn lại */
-            body, html { overflow-x: hidden; }
-            .navbar { overflow-x: hidden; }
-            
             .navbar {
-                flex-direction: row;
-                padding: 1rem 5%;
+                flex-direction: column;
+                padding: 1rem;
             }
             
             .navbar-left {
-                flex-direction: row;
-                width: auto;
+                flex-direction: column;
+                width: 100%;
             }
             
             .logo {
-                margin-right: 2rem;
-                margin-bottom: 0;
+                margin-right: 0;
+                margin-bottom: 15px;
             }
             
             .nav-links {
-                width: auto;
-                justify-content: flex-start;
-                flex-wrap: nowrap;
+                width: 100%;
+                justify-content: center;
+                flex-wrap: wrap;
             }
             
             .nav-links li {
-                margin: 0 1rem;
+                margin: 5px 10px;
             }
             
             .navbar-right {
-                margin-top: 0;
-                width: auto;
-                justify-content: flex-end;
+                margin-top: 15px;
+                width: 100%;
+                justify-content: center;
             }
             
             .search-input {
-                width: 200px;
+                width: 150px;
             }
         }
     </style>
