@@ -8,30 +8,40 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
-        /* Basic reset to ensure full screen */
+        /* Basic reset to ensure full screen and prevent scrolling */
         body, html {
             margin: 0;
             padding: 0;
+            width: 100%;
             height: 100%;
-            overflow-x: hidden;
-            background-color: #050505; /* Dark background color to enhance effects */
+            overflow: hidden; /* Prevents scrolling */
+            background-color: #050505; 
         }
         
+        /* Navbar positioned over the home section */
+        .navbar {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            z-index: 100;
+            box-sizing: border-box;
+        }
+
         /* --- NEW HOME SECTION --- */
         #home {
             position: relative;
             width: 100%;
-            height: 100vh; /* Full screen height */
+            height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            /* Set background image */
             background: url('images/background.jpg') no-repeat center center;
             background-size: cover;
             overflow: hidden;
         }
 
-        /* Optional: Add a dark overlay to make text pop against the background image */
+        /* Overlay opacity reduced to make the background clearer */
         #home::before {
             content: '';
             position: absolute;
@@ -39,7 +49,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: rgba(0, 0, 0, 0.6); /* Adjust opacity (0.6) as needed */
+            background: rgba(0, 0, 0, 0.1); 
             z-index: 0;
         }
 
@@ -50,33 +60,59 @@
             left: 0;
             width: 100%;
             height: 100%;
-            z-index: 1; /* Above the background overlay */
+            z-index: 1;
         }
 
         /* Main content container */
         .home-content {
             position: relative;
-            z-index: 2; /* Sits above the canvas */
+            z-index: 2; 
             text-align: center;
             padding: 20px;
             color: #fff;
             max-width: 900px;
         }
 
-        /* 1. Glitch Effect for Title */
+        /* 1. Epic Entrance & Glitch Effect for Title */
         .neon-title {
             font-size: 5rem;
             font-weight: 800;
             text-transform: uppercase;
             position: relative;
-            text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff,
-                         0.025em 0.04em 0 #fffc00;
-            animation: glitch 725ms infinite;
-            margin-bottom: 20px;
             letter-spacing: 2px;
-            font-family: 'Courier New', Courier, monospace; /* Code/Game style font */
+            font-family: 'Courier New', Courier, monospace;
+            margin-bottom: 20px;
+            /* Start invisible for the entrance animation */
+            opacity: 0; 
+            /* Run epic entrance for 2s, then start the infinite glitch after a 2s delay */
+            animation: epicEntrance 2s cubic-bezier(0.25, 1, 0.5, 1) forwards, 
+                       glitch 725ms infinite 2s;
         }
 
+        /* The Cinematic Boot-up Keyframes */
+        @keyframes epicEntrance {
+            0% {
+                opacity: 0;
+                transform: scale(2) translateY(-50px);
+                filter: blur(20px);
+                letter-spacing: -15px;
+            }
+            50% {
+                opacity: 0.8;
+                transform: scale(1.05) translateY(0);
+                filter: blur(2px);
+                letter-spacing: 8px;
+            }
+            100% {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+                filter: blur(0);
+                letter-spacing: 2px;
+                text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00;
+            }
+        }
+
+        /* The Continuous Glitch Keyframes */
         @keyframes glitch {
             0% { text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00; }
             15% { text-shadow: 0.05em 0 0 #00fffc, -0.03em -0.04em 0 #fc00ff, 0.025em 0.04em 0 #fffc00; }
@@ -87,19 +123,21 @@
             100% { text-shadow: -0.05em 0 0 #00fffc, -0.025em -0.04em 0 #fc00ff, -0.04em -0.025em 0 #fffc00; }
         }
 
-        /* 2. Typing Effect for Subtitle */
+        /* 2. Typing Effect for Subtitle - Modified to start at t=0s, simultaneously with Title */
         .home-subtitle {
             font-size: 1.4rem;
             color: #f2e7e7;
             margin-bottom: 40px;
             font-family: 'Consolas', monospace;
-            border-right: 1.6px solid #00fffc; /* Blinking cursor */
+            border-right: 1.6px solid transparent; 
             white-space: nowrap;
             overflow: hidden;
-            width: 0; /* Start from 0 to run effect */
+            width: 0; 
             margin-left: auto;
             margin-right: auto;
-            animation: typing 4.5s steps(30, end) forwards, blink-caret 0.75s step-end infinite;
+            /* The delay has been changed from 2s to 0s to make it start immediately */
+            animation: typing 4s steps(30, end) 0s forwards, 
+                       blink-caret 0.75s step-end infinite;
         }
 
         @keyframes typing {
@@ -112,7 +150,29 @@
             50% { border-color: #00fffc; }
         }
 
-        /* 3. Cyberpunk Button Effect */
+        /* 3. Button Styles & Entrance Animation for the Button Container */
+        
+        /* New container for the two buttons */
+        .cta-container {
+            display: flex;
+            justify-content: center;
+            gap: 20px; /* Space between buttons */
+            margin-top: 40px;
+            /* Start invisible and slide up */
+            opacity: 0;
+            transform: translateY(20px);
+            /* The delay here is 4s, which is when the subtitle typing finishes */
+            animation: buttonEntrance 1s ease-out 4s forwards; 
+        }
+
+        @keyframes buttonEntrance {
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Cyberpunk Button Effect */
         .cta-button {
             position: relative;
             display: inline-block;
@@ -137,10 +197,20 @@
             border-color: #00fffc;
         }
 
-        /* Responsive */
+        /* Responsive adjustments */
         @media (max-width: 768px) {
-            .neon-title { font-size: 2.5rem; }
-            .home-subtitle { font-size: 0.9rem; white-space: normal; border-right: none; width: auto; animation: none; }
+            .neon-title { font-size: 2.5rem; animation: epicEntranceMobile 2s forwards, glitch 725ms infinite 2s; }
+            .home-subtitle { font-size: 0.9rem; white-space: normal; border-right: none; width: auto; animation: none; opacity: 0; animation: simpleFade 2s 2s forwards; }
+            .cta-container { flex-direction: column; gap: 10px; animation-delay: 4.5s; } /* Stack on mobile */
+        }
+
+        @keyframes epicEntranceMobile {
+            0% { opacity: 0; transform: scale(1.5); filter: blur(10px); }
+            100% { opacity: 1; transform: scale(1); filter: blur(0); }
+        }
+
+        @keyframes simpleFade {
+            to { opacity: 1; }
         }
     </style>
 </head>
@@ -175,7 +245,10 @@
             
             <p class="home-subtitle">Developed by Hoang Son Lai - Business Analytics Student</p>
             
-            <a href="about.html" class="cta-button">Access Profile</a>
+            <div class="cta-container">
+                <a href="games.html" class="cta-button">Play Games</a>
+                <a href="analysis.html" class="cta-button">Read Analysis</a>
+            </div>
         </div>
     </section>
 
@@ -187,7 +260,7 @@
 
         let particlesArray;
 
-        // Particle class
+        // Particle class definition
         class Particle {
             constructor(x, y, directionX, directionY, size, color) {
                 this.x = x;
@@ -197,16 +270,16 @@
                 this.size = size;
                 this.color = color;
             }
-            // Draw particle
+            // Method to draw individual particles
             draw() {
                 ctx.beginPath();
                 ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2, false);
-                ctx.fillStyle = '#00fffc'; /* Cyan particle color */
+                ctx.fillStyle = '#00fffc'; 
                 ctx.fill();
             }
-            // Update particle position
+            // Method to update particle position
             update() {
-                // Kiểm tra va chạm với cạnh màn hình
+                // Check collision with screen edges to bounce back
                 if (this.x > canvas.width || this.x < 0) {
                     this.directionX = -this.directionX;
                 }
@@ -214,16 +287,13 @@
                     this.directionY = -this.directionY;
                 }
 
-                // --- ĐÃ XÓA PHẦN TƯƠNG TÁC ĐẨY CỦA CHUỘT TẠI ĐÂY ---
-                // Giờ các điểm sẽ di chuyển tự nhiên mà không sợ chuột
-
                 this.x += this.directionX;
                 this.y += this.directionY;
                 this.draw();
             }
         }
 
-        // Create particle array
+        // Initialize particle array
         function init() {
             particlesArray = [];
             let numberOfParticles = (canvas.height * canvas.width) / 9000;
@@ -239,7 +309,7 @@
             }
         }
 
-        // Connect particles with lines
+        // Connect particles with lines if they are close enough
         function connect() {
             let opacityValue = 1;
             for (let a = 0; a < particlesArray.length; a++) {
@@ -248,7 +318,7 @@
                     + ((particlesArray[a].y - particlesArray[b].y) * (particlesArray[a].y - particlesArray[b].y));
                     if (distance < (canvas.width/7) * (canvas.height/7)) {
                         opacityValue = 1 - (distance/20000);
-                        ctx.strokeStyle = 'rgba(0, 255, 252,' + opacityValue + ')'; /* Connection line color */
+                        ctx.strokeStyle = 'rgba(0, 255, 252,' + opacityValue + ')'; 
                         ctx.lineWidth = 1;
                         ctx.beginPath();
                         ctx.moveTo(particlesArray[a].x, particlesArray[a].y);
@@ -259,7 +329,7 @@
             }
         }
 
-        // Animation Loop
+        // Main animation loop
         function animate() {
             requestAnimationFrame(animate);
             ctx.clearRect(0, 0, innerWidth, innerHeight);
@@ -269,7 +339,7 @@
             connect();
         }
 
-        // Resize Event
+        // Resize event listener to maintain full screen canvas
         window.addEventListener('resize', 
             function(){
                 canvas.width = innerWidth;
@@ -277,8 +347,6 @@
                 init();
             }
         );
-
-        // Đã xóa phần xử lý mousemove và mouseout vì không còn cần thiết
 
         init();
         animate();
