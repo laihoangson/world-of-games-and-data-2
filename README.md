@@ -4,6 +4,11 @@
 
 The URL for the website is [https://laihoangson.github.io/world-of-games-and-data-2/](https://laihoangson.github.io/world-of-games-and-data-2/)
 
+**Viewing Note:**
+
+For the best experience, view this page on a desktop.  
+On mobile devices, switch your browser to **Desktop Mode** or **Request Desktop Site**.
+
 ## PC Games Collection
 
 ### 🐍 Neon Snake
