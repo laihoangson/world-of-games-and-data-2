@@ -704,13 +704,13 @@ loadings_plot
 
 @fig-2-5-2 is essential for interpreting the PCA results, as it explains the meaning behind the two principal components that summarize 87.3% of the player behavior variance. Each point represents an original variable, and its position reveals its contribution to PC1 and PC2.
 
-PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes—score, game_duration, pipes_passed, coins_collected, ufos_shot, and bullets_fired—have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
+PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes - `score`, `game_duration`, `pipes_passed`, `coins_collected`, `ufos_shot`, and `bullets_fired` - have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
 
 PC2 - "Playstyle: Passive Survival vs. Active Combat" (26.5%): This is where the crucial correction lies.
 
-- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: game_duration, coins_collected, and pipes_passed. These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
+- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: `game_duration`, `coins_collected`, and `pipes_passed.` These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
 
-- The variables with negative loadings (pointing downwards) are the key behavioral ratios: aggressiveness, risk_taking, efficiency, and, critically, accuracy. These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
+- The variables with negative loadings (pointing downwards) are the key behavioral ratios: `aggressiveness`, `risk_taking`, `efficiency`, and, critically, `accuracy.` These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
 
 ## 3. Data Splitting & Cross-Validation Strategy
 
@@ -791,11 +791,11 @@ cluster_profiles %>% kable()
 
 @tbl-4 provides a quantitative summary of the three identified clusters, showing the average value of key metrics for each group. This is where the player personas become clear:
 
-- Cluster 1 (956 samples): The "Experts". This group has a very high average score (52.5), a long game duration (37s), and high numbers for coins, UFOs shot, and bullets fired. They are highly skilled and engaged players.
+- Cluster 1 (23 samples): The "Experts". This group has a very high average score (53.2), a long game duration (37s), and high numbers for coins, UFOs shot, and bullets fired. They are highly skilled and engaged players.
 
-- Cluster 2 (3061 samples): The "Novices". This group has an extremely low average score (0.4) and a very short game duration (1.4s). These are likely new players who fail almost immediately and are at the highest risk of churning.
+- Cluster 2 (75 samples): The "Novices". This group has an extremely low average score (0.4) and a very short game duration (1.4s). These are likely new players who fail almost immediately and are at the highest risk of churning.
 
-- Cluster 3 (5983 samples): The "Average Players". This group sits between the other two, with a moderate average score (10.8) and game duration (7.5s). They represent the bulk of the player base who have passed the initial learning curve but have not yet reached expert level.
+- Cluster 3 (152 samples): The "Average Players". This group sits between the other two, with a moderate average score (10.8) and game duration (7.6s). They represent the bulk of the player base who have passed the initial learning curve but have not yet reached expert level.
 
 ## 5. Predictive Modeling (Supervised Learning)
 
@@ -1001,17 +1001,17 @@ cat("\nPer-Class Accuracy:\n")
 print(round(class_acc, 3))
 ```
 
-**Death Reason Prediction Accuracy: 0.62**: The model achieved an overall accuracy of 62% on the holdout test set. This means it correctly predicted the specific cause of death in 6 out of 10 cases. For a challenging multiclass problem with imbalanced data (far more `pipe` deaths than others), this is a strong and promising result that provides a solid foundation for a real-time assistance feature.
+**Death Reason Prediction Accuracy: 0.62:** The model achieved an overall accuracy of 60% on the holdout test set. While this demonstrates predictive capability superior to random guessing, the result must be interpreted with caution due to significant class imbalance. The dataset is heavily skewed toward "pipe" deaths (182 instances) compared to rare events like "ufo_collision" (3 instances). Consequently, the 60% accuracy metric is largely driven by the model’s ability to predict the majority class, rather than a balanced performance across all failure types. This establishes a moderate baseline but indicates that further refinement is necessary.
 
-**Confusion Matrix and Statistics**: The confusion matrix provides a detailed breakdown of the model's strengths and weaknesses. It excels at identifying the most common failure types, correctly predicting `pipe` deaths with 84% accuracy and `ground` deaths with 66.7% accuracy. However, the model struggles with less frequent and more nuanced causes, such as `enemy_bullet` deaths (31.2% accuracy), where it often misclassifies them as `pipe` deaths. This is a classic symptom of class imbalance and suggests that the model could be further improved by gathering more data on these specific high-skill failure scenarios.
+**Confusion Matrix and Statistics:** The confusion matrix explicitly highlights the challenges posed by the imbalanced dataset. The model performs reliably on frequent failure modes, achieving 84.0% accuracy for "pipe" deaths and 66.7% for "ground" deaths. However, it exhibits a strong bias toward these majority classes, struggling significantly with nuanced, high-skill failure scenarios. For instance, it achieved only 31.2% accuracy for "enemy_bullet" deaths and failed to correctly classify any "ufo_collision" events (NaN accuracy). This is a classic symptom of training on imbalanced data without adjustment; to improve the detection of these minority classes, future iterations should employ techniques such as SMOTE (Synthetic Minority Over-sampling Technique) or apply Class Weights during training.
 
-**Top Predictors (Feature Importance)**: The feature importance list reveals the behavioral signals that drive the model's predictions, with `bullets_fired` and `pipes_passed` emerging as the two most influential factors. This indicates that the model's core logic hinges on differentiating between two key player archetypes: the "Dodger," who focuses on navigation (high `pipes_passed`, low `bullets_fired`), and the "Fighter," who actively engages enemies (high `bullets_fired`). By identifying a player's dominant style through these features, the model can effectively predict whether they are more likely to fail from a navigational error (`pipe`, `ground`) or a combat-related one (`enemy_bullet`). This powerfully reinforces the insight that how a player chooses to play is the primary determinant of how they will ultimately fail.
+**Top Predictors (Feature Importance):** Despite the classification challenges, the feature importance analysis offers valuable behavioral insights. `bullets_fired` (Gain: 0.3) and `pipes_passed` (Gain: 0.23) emerge as the most influential predictors. This suggests the model is attempting to distinguish outcomes based on two distinct archetypes: the "Dodger" (high `pipes_passed`, low `bullets_fired`) and the "Fighter" (high `bullets_fired`). The model correctly infers that a player’s engagement style - whether they focus on navigation or combat - is the primary precursor to their specific type of failure. However, as noted above, the class imbalance currently prevents the model from fully leveraging these signals to accurately pinpoint the specific combat-related deaths.
 
 ## 6. Business Insights & Recommendations
 
 ### 6.1. Key Business Insights
 
-**Success is Driven by Aggressive Efficiency, Not Just Survival**: The most successful players are not passive. Behavioral analysis reveals that efficiency (`score per second`) is overwhelmingly driven by a high-risk, high-reward playstyle characterized by aggressive UFO engagement (`risk_taking`, `ufo_rate`). Simply dodging obstacles is a suboptimal strategy.
+**Success is Driven by Aggressive Efficiency, Not Just Survival**: The most successful players are not passive. Behavioral analysis reveals that `efficiency` (`score_per_second`) is overwhelmingly driven by a high-risk, high-reward playstyle characterized by aggressive UFO engagement (`risk_taking`, `ufo_rate`). Simply dodging obstacles is a suboptimal strategy.
 
 **Pipes are the Universal Bottleneck**: While pipes are the most common cause of death for novices, their long tail in the score distribution shows they remain a threat even to experts. This makes pipe navigation the single most critical skill gate and a constant challenge for all players.
 
@@ -1025,7 +1025,7 @@ print(round(class_acc, 3))
 
 - Experts (Cluster 1, ~10%): Highly skilled, long-surviving players who actively engage with all game systems. They are the primary source of high scores and likely the most engaged.
 
-**Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness`, confirming that active players survive longer than passive ones.
+**Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness` and `bullet_fired`, confirming that active players survive longer than passive ones.
 
 ### 6.2. Actionable Recommendations
 
@@ -1084,3 +1084,19 @@ print(round(class_acc, 3))
 **Business Impact:** This retains the most dedicated and valuable players, creates community buzz around high-score competitions, and extends the game's lifecycle.
 
 > **By implementing these above data-driven recommendations, Flappy Plane Adventure can evolve into a more balanced and engaging game that effectively nurtures players from their first tap to expert-level mastery.**
+
+## 7. Limitations
+
+While this analysis provides robust and actionable insights into player behaviour, several limitations inherent to the dataset and methodology should be acknowledged:
+
+- Sample Size Constraints: The original dataset consists of only 300 game sessions. Although the implementation of 5-Fold Cross-Validation effectively maximises data utility and prevents overfitting during model evaluation, it cannot artificially create new, distinct playstyles. The models' ability to generalise to a broader, global player base is still inherently bounded by the variance present in these initial 300 samples.
+
+- Deterministic Target Variables: The predictive models, particularly the Score Regression model, achieved exceptionally high accuracy (R^2 > 0.99). While Cross-Validation ensures this is not due to data leakage, this near-perfect performance stems from the deterministic nature of the game's scoring engine. Because the final score is a strict mathematical combination of `coins_collected` and `ufos_shot`, the Random Forest algorithm essentially reverse-engineered the game's mathematical formula rather than inferring deep, hidden behavioural complexities.
+
+- Class Imbalance in Multiclass Classification: The death reason prediction model is significantly constrained by class imbalance. A vast majority of game sessions end in "pipe" or "ground" collisions, leaving highly advanced failure states (like "enemy_bullet" or "ufo_collision") underrepresented. This imbalance reduces the model's reliability in accurately classifying those rarer, high-skill death events.
+
+- Correlated Behavioral Features: Several engineered features, such as `efficiency`, `risk_taking`, and `ufo_rate`, are highly correlated. While this collinearity does not degrade the predictive power of algorithms like Random Forest or XGBoost, it does entangle feature importance scores, making it slightly more challenging to isolate the independent impact of a single behavioral metric.
+
+- Lack of Longitudinal Data: The current analysis is strictly session-based. Without unique player IDs linking multiple sessions together, it is impossible to track longitudinal trends, such as individual player learning curves, adaptation to difficulty over time, or long-term retention rates.
+
+Future work should aim to collect larger-scale, longitudinal data with unique player identifiers. Tracking players across multiple sessions would allow for advanced cohort analysis, deeper insights into the learning process, and the development of predictive models that forecast long-term player churn and lifetime value (LTV).
