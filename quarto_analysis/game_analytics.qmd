@@ -77,25 +77,23 @@ conflicts_prefer(ggplot2::margin)
 set.seed(123)
 ```
 
-![](game.jpg)
-
 ## Introduction
 
 The modern gaming landscape is fiercely competitive, where player retention and engagement are the ultimate currencies. Success is no longer solely determined by creative design and immersive gameplay but increasingly by the ability to understand and adapt to player behavior. This project, "Game Analytics: From Exploratory Data Analysis to Predictive Modeling," demonstrates this data-driven paradigm by conducting a comprehensive analysis of Flappy Plane Adventure, a dynamic side-scrolling shooter.
 
-Leveraging a rich dataset of 300 game sessions, this study moves beyond traditional descriptive statistics to uncover the deep-seated patterns that govern player success and failure. My journey begins with a thorough Exploratory Data Analysis (EDA), where I visualize performance distributions, identify the most common obstacles, and engineer advanced behavioral features such as aggressiveness, efficiency, and risk-taking to quantify playstyles.
+Leveraging a focused dataset of 300 game sessions, this study moves beyond traditional descriptive statistics to uncover the deep-seated patterns that govern player success and failure. My journey begins with a thorough Exploratory Data Analysis (EDA), where I visualize performance distributions, identify the most common obstacles, and engineer advanced behavioral features such as aggressiveness, efficiency, and risk-taking to quantify playstyles.
 
-I then tackle the challenge of a limited dataset through bootstrapping, artificially expanding my training data to build more robust and generalizable machine learning models. This foundation allows me to segment the player base into distinct behavioral profiles using unsupervised learning (K-Means Clustering), revealing clear archetypes from hesitant Beginners to seasoned Experts.
+To tackle the challenge of a limited dataset without introducing bias or overfitting, this study employs K-Fold Cross-Validation for robust machine learning evaluation. This foundation allows me to segment the player base into distinct behavioral profiles using unsupervised learning (K-Means Clustering), revealing clear archetypes from hesitant Beginners to seasoned Experts.
 
 The core of this investigation lies in supervised predictive modeling. I develop and compare multiple algorithms to:
 
-- Predict final scores with near-perfect accuracy using a Random Forest regressor.
+- Predict final scores based on gameplay behavior.
 
 - Forecast player survival beyond a critical 30-second threshold.
 
-- Anticipate the cause of a player's death through a multiclass classification model.
+- Anticipate the cause of a player's death through classification modeling.
 
-Ultimately, this report transcends a mere technical exercise. Each model and visualization is meticulously interpreted to generate actionable, evidence-based recommendations for game balancing, targeted player engagement, and strategic monetization. My goal is to provide a clear blueprint for how data science can be practically applied to create a more enjoyable and balanced gaming experience.
+Ultimately, this report transcends a mere technical exercise. Each model and visualization is meticulously interpreted to generate actionable, evidence-based recommendations for game balancing, targeted player engagement, and strategic monetization.
 
 ## 1. Data Overview & Processing
 
@@ -666,6 +664,7 @@ ggplotly(efficiency_plot)
 - High-Skill Tiers (e.g., Pink: 50+ Score): The trendline for the most skilled players is extremely steep. This demonstrates a very high efficiency: a small increase in bullets fired results in a large increase in UFOs shot.
 
 - Low-Skill Tiers (e.g., Red: 0-4 Score): The trendlines for the least skilled players are nearly flat. They may fire a moderate number of bullets, but they achieve almost no successful hits. This visually separates raw activity (firing bullets) from effective outcomes (hitting targets).
+
 In essence, the chart proves that simply being aggressive is not enough; success is defined by the efficiency of that aggression, a trait clearly demonstrated by the higher skill tiers.
 
 ### 2.5 Clusterable Structure Check
@@ -705,77 +704,19 @@ loadings_plot
 
 @fig-2-5-2 is essential for interpreting the PCA results, as it explains the meaning behind the two principal components that summarize 87.3% of the player behavior variance. Each point represents an original variable, and its position reveals its contribution to PC1 and PC2.
 
-PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes - `score`, `game_duration`, `pipes_passed`, `coins_collected`, `ufos_shot`, and `bullets_fired` - have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
+PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes—score, game_duration, pipes_passed, coins_collected, ufos_shot, and bullets_fired—have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
 
 PC2 - "Playstyle: Passive Survival vs. Active Combat" (26.5%): This is where the crucial correction lies.
 
-- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: `game_duration`, `coins_collected`, and `pipes_passed.` These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
+- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: game_duration, coins_collected, and pipes_passed. These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
 
-- The variables with negative loadings (pointing downwards) are the key behavioral ratios: `aggressiveness`, `risk_taking`, `efficiency`, and, critically, `accuracy.` These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
+- The variables with negative loadings (pointing downwards) are the key behavioral ratios: aggressiveness, risk_taking, efficiency, and, critically, accuracy. These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
 
-```{r}
-#| fig-height: 5
-#| fig-cap: "PCA - Player Behavior Patterns by Death Reason"
-#| label: fig-2-5-1
+## 3. Data Splitting & Cross-Validation Strategy
 
-# PCA Analysis
+Given the dataset's size (300 samples), artificially inflating the data through simple bootstrapping risks massive overfitting, where models memorize duplicated records rather than learning underlying patterns. To build robust models, I rely on K-Fold Cross-Validation during training and a strict holdout set for final evaluation.
 
-
-pca_df <- as.data.frame(pca_result$x)
-pca_df$death_reason <- game_data_enhanced$death_reason
-pca_df$score <- game_data_enhanced$score
-pca_df$game_duration <- game_data_enhanced$game_duration
-pca_df$accuracy <- round(game_data_enhanced$accuracy, 3)
-pca_df$coins_collected <- game_data_enhanced$coins_collected
-pca_df$ufos_shot <- game_data_enhanced$ufos_shot
-pca_df$pipes_passed <- game_data_enhanced$pipes_passed
-
-pca_df$tooltip <- paste(
-    "Death reason:", pca_df$death_reason, "<br>",
-    "Score:", pca_df$score, "<br>",
-    "Duration:", pca_df$game_duration, "s<br>",
-    "Accuracy:", pca_df$accuracy, "<br>",
-    "Coins:", pca_df$coins_collected, "<br>",
-    "UFOs:", pca_df$ufos_shot, "<br>",
-    "Pipes:", pca_df$pipes_passed
-)
-
-pca_plot <- plot_ly(pca_df, x = ~PC1, y = ~PC2, 
-                   color = ~death_reason,
-                   type = 'scatter', mode = 'markers',
-                   text = ~tooltip,
-                   hoverinfo = 'text',
-                   marker = list(size = 8, opacity = 0.7)) %>%
-    layout(title = "PCA - Player Behavior Patterns by Death Reason",
-           xaxis = list(title = paste0("PC1 (", 
-                                     round(100 * pca_result$sdev[1]^2/sum(pca_result$sdev^2), 1), "%)")),
-           yaxis = list(title = paste0("PC2 (", 
-                                     round(100 * pca_result$sdev[2]^2/sum(pca_result$sdev^2), 1), "%)")))
-
-pca_plot
-```
-
-@fig-2-5-1 visualises the game sessions on a 2D map defined by player skill and playstyle. With the context from the PCA Loadings, the distribution of each death_reason tells a compelling story about the player journey:
-
-The Novice Zone (Far Left):
-
-- ground (dark blue): Tightly clustered in the upper-left quadrant. This represents players with very low skill (low PC1) who adopt a Passive Survival playstyle (high PC2) but fail by not acting enough, letting the plane fall.
-
-- ceiling (light blue/teal): Tightly clustered in the lower-left quadrant. This represents players with very low skill (low PC1) who adopt an Active Combat or overly-aggressive playstyle (low PC2) and fail by acting too much, crashing into the ceiling. These two groups represent the two classic types of beginner mistakes: inaction vs. overreaction.
-
-The Intermediate Challenge (Center):
-
-- pipe (pink): These points are spread throughout the center of the plot. This visually confirms that pipe collisions are the universal challenge that players must overcome to transition from novice to skilled. They affect players of all playstyles.
-
-The Advanced Zone (Far Right):
-
-- ufo_collision (light green) and enemy_bullet (orange): These points dominate the right side of the plot, representing the most skilled and highest-progressing players. Crucially, they are almost entirely in the lower-right quadrant. This signifies that the most successful players are those who employ a highly effective Active Combat strategy. Dying by an enemy bullet or a ufo collision is, paradoxically, a sign of a high-skill player who has survived long enough to face the game's most difficult threats.
-
-## 3. Bootstrapping Data for Machine Learning
-
-Because the dataset contains only 300 game sessions, the amount of real training data is insufficient for fitting more complex models without risking overfitting. To address this limitation, I apply a controlled bootstrapping procedure designed to expand the training set while preserving the statistical structure of real player behavior. First, the dataset is chronologically ordered by `start_time` to avoid any leakage from future sessions into the training process. The earliest 250 sessions are used as the base training set, while the most recent 50 sessions are held out as an untouched test set for final, unbiased evaluation.
-
-From the 250-session training base, I generate a bootstrapped dataset by sampling with replacement at the session level to maintain the integrity of each gameplay sequence. This produces 10,000 synthetic sessions that follow the same empirical distributions as the original data while introducing variability through resampling. Importantly, no information from the 50-session holdout set is included in this process, ensuring a clean separation between training and evaluation. The resulting bootstrapped dataset provides a larger and more stable foundation for training machine learning models, improving generalization without altering the underlying behavioral patterns present in the real data.
+I split the data chronologically to mimic a real-world scenario (predicting future sessions based on past ones), reserving the last 50 sessions as our unbiased test set. The remaining 250 sessions form our base training set.
 
 ```{r}
 # Sort by time and split data
@@ -783,36 +724,16 @@ game_sorted <- game_data_enhanced %>% arrange(start_time)
 train_base <- head(game_sorted, 250)
 test_holdout <- tail(game_sorted, 50)
 
-# Bootstrap training data
-set.seed(123)
-bootstrap_size <- 10000
-train_bootstrapped <- train_base %>% 
-    slice_sample(n = bootstrap_size, replace = TRUE) %>% 
-    mutate(is_synthetic = TRUE)
+# Define Cross-Validation strategy for caret
+fit_control <- trainControl(
+  method = "cv", 
+  number = 5,
+  savePredictions = "final"
+)
 
-cat("Original Train Size:", nrow(train_base), "\n")
-cat("Bootstrapped Train Size:", nrow(train_bootstrapped), "\n")
+cat("Base Train Size (for CV):", nrow(train_base), "\n")
 cat("Holdout Test Size:", nrow(test_holdout), "\n")
 ```
-
-```{r}
-#| fig-width: 7
-#| fig-height: 5
-#| fig-cap: "Score Distribution: Real vs Bootstrapped Data"
-#| label: fig-3
-
-# Compare distribution real vs bootstrapped
-compare_plot <- ggplot() +
-    geom_density(data = train_base, aes(x = score, color = "Real"), size = 1) +
-    geom_density(data = train_bootstrapped, aes(x = score, color = "Bootstrapped"), size = 1, alpha = 0.7) +
-    labs(title = "Score Distribution: Real vs Bootstrapped Data",
-         x = "Score", y = "Density", color = "Data Type") +
-    theme_minimal()
-
-compare_plot
-```
-
-This density plot is a critical validation step. It overlays the distribution of the score variable from the original training data ("Real") with the distribution from the new synthetic data ("Bootstrapped"). The two curves align almost perfectly, which confirms that the bootstrapping process was successful. The synthetic data accurately mirrors the statistical characteristics of the original data, making it a reliable and larger dataset for model training.
 
 ## 4. Segmentation (Unsupervised Learning)
 
@@ -825,23 +746,21 @@ This section uses unsupervised learning to discover natural groupings or "person
 #| label: fig-4
 
 # Features for clustering
-cluster_features_enhanced <- train_bootstrapped %>% 
-    select(score, game_duration, coins_collected, bullets_fired,
-           ufos_shot, pipes_passed, aggressiveness, efficiency,
-           accuracy, risk_taking)
+features_to_cluster <- train_base %>% 
+    select(score, game_duration, coins_collected, bullets_fired, ufos_shot, 
+           pipes_passed, aggressiveness, efficiency, accuracy, risk_taking)
 
-scaled_features_enhanced <- scale(cluster_features_enhanced)
+scaled_features <- scale(features_to_cluster)
 
 # KMeans clustering with 3 clusters
 set.seed(123)
-kmeans_enhanced <- kmeans(scaled_features_enhanced, centers = 3, nstart = 25)
-train_bootstrapped$cluster_enhanced <- as.factor(kmeans_enhanced$cluster)
+kmeans_model <- kmeans(scaled_features, centers = 3, nstart = 25)
+train_base$cluster <- as.factor(kmeans_model$cluster)
 
 # Visualize clusters
-fviz_cluster(kmeans_enhanced, data = scaled_features_enhanced,
-            geom = "point", ellipse.type = "convex",
-            ggtheme = theme_minimal(),
-            main = "Enhanced Player Segmentation (K-Means)")
+fviz_cluster(kmeans_model, data = scaled_features, geom = "point", 
+             ellipse.type = "convex", ggtheme = theme_minimal(), 
+             main = "Player Segmentation (K-Means)")
 ```
 
 @fig-4 visualizes the results of the K-Means clustering. Each point represents a game session, and its color corresponds to the cluster it was assigned to. The data is plotted on the first two principal components (Dim1 and Dim2), which capture the most variance in the data. The clear separation between the three colored groups (red, green, and blue) indicates that the algorithm successfully identified three distinct patterns of player behavior.
@@ -851,9 +770,9 @@ fviz_cluster(kmeans_enhanced, data = scaled_features_enhanced,
 #| tbl-cap: "Cluster profiles"
 
 # Cluster profiles
-cluster_profiles <- train_bootstrapped %>%
-    group_by(cluster_enhanced) %>%
-    rename(`Cluster enhanced` = cluster_enhanced) %>%
+cluster_profiles <- train_base %>%
+    group_by(cluster) %>%
+    rename(`Cluster` = cluster) %>%
     summarise(
         Count = n(),
         `Avg Score` = mean(score),
@@ -880,11 +799,11 @@ cluster_profiles %>% kable()
 
 ## 5. Predictive Modeling (Supervised Learning)
 
-Leveraging the insights and the enhanced dataset, this section focuses on building predictive models using supervised learning. The objective is to tackle three distinct business problems: predicting a player's final score (Score Regression), predicting whether a player will survive longer than a 30-second threshold (Survival Prediction), and predicting the specific cause of death (Multiclass Classification). Advanced algorithms like Random Forest and XGBoost are trained on the bootstrapped data and evaluated on the holdout test set.
+Leveraging the insights and the enhanced dataset, this section focuses on building predictive models using supervised learning. The objective is to tackle three distinct business problems: predicting a player's final score (Score Regression), predicting whether a player will survive longer than a 30-second threshold (Survival Prediction), and predicting the specific cause of death (Multiclass Classification). Advanced algorithms like Random Forest and XGBoost are trained on the train base data and evaluated on the holdout test set.
 
 ### 5.1 Score Regression
 
-I implemented a Random Forest regressor using both raw and behavioral features to predict player scores. The model was trained on bootstrapped data and evaluated on a holdout test set using RMSE and R-squared metrics to assess prediction accuracy.
+I implemented a Random Forest regressor using both raw and behavioral features to predict player scores. The model was trained on the train base data and evaluated on a holdout test set using RMSE and R-squared metrics to assess prediction accuracy.
 
 ```{r}
 # Define features
@@ -893,24 +812,26 @@ features_enhanced <- c("coins_collected", "ufos_shot", "bullets_fired",
                       "efficiency", "accuracy", "risk_taking")
 
 # Random Forest with enhanced features
-rf_enhanced <- randomForest(
-    as.formula(paste("score ~", paste(features_enhanced, collapse = "+"))),
-    data = train_bootstrapped,
-    ntree = 100,
-    importance = TRUE
+set.seed(123)
+rf_score_model <- train(
+  as.formula(paste("score ~", paste(features_enhanced, collapse = "+"))),
+  data = train_base,
+  method = "rf",
+  trControl = fit_control,
+  importance = TRUE
 )
 
 # Predict and assess
-predictions_rf_enhanced <- predict(rf_enhanced, newdata = test_holdout)
-rmse_enhanced <- RMSE(predictions_rf_enhanced, test_holdout$score)
-r2_enhanced <- R2(predictions_rf_enhanced, test_holdout$score)
+rf_preds <- predict(rf_score_model, newdata = test_holdout)
+rmse_val <- RMSE(rf_preds, test_holdout$score)
+r2_val <- R2(rf_preds, test_holdout$score)
 
-cat("Enhanced Random Forest Performance:\n")
-cat("RMSE:", round(rmse_enhanced, 2), "\n")
-cat("R-Squared:", round(r2_enhanced, 4), "\n")
+cat("Holdout Test Performance:\n")
+cat("RMSE:", round(rmse_val, 2), "\n")
+cat("R-Squared:", round(r2_val, 4), "\n")
 ```
 
-RMSE: 0.84 and R-Squared: 0.9961: These are performance metrics for the Random Forest model predicting the final score. The RMSE (Root Mean Squared Error) of 0.84 indicates that, on average, the model's score predictions are off by only 0.84 points, which is very low. The R-Squared value of 0.9961 is extremely high, signifying that the model can explain 99.61% of the variability in the score, making it an exceptionally accurate predictor.
+RMSE: 1 and R-Squared: 0.9945: These are performance metrics for the Random Forest model predicting the final score. The RMSE (Root Mean Squared Error) of 1 indicates that, on average, the model's score predictions are off by only 1 points, which is very low. The R-Squared value of 0.9945 is extremely high, signifying that the model can explain 99.45% of the variability in the score, making it an exceptionally accurate predictor.
 
 ```{r}
 #| fig-width: 7
@@ -919,7 +840,8 @@ RMSE: 0.84 and R-Squared: 0.9961: These are performance metrics for the Random F
 #| label: fig-5-1
 
 # Variable importance
-varImpPlot(rf_enhanced, main = "Enhanced Feature Importance for Score Prediction")
+varImpPlot(rf_score_model$finalModel, 
+           main = "Enhanced Feature Importance for Score Prediction")
 ```
 
 @fig-5-1 reveals which variables were most influential for the Random Forest model's predictions, using two distinct metrics: %IncMSE (increase in model error if the feature is removed) and IncNodePurity (contribution to decision-making). Both metrics are in strong agreement, identifying a clear hierarchy of importance. 
@@ -932,7 +854,7 @@ I built binary classification models (Random Forest and XGBoost) to predict whet
 
 ```{r}
 threshold <- 30
-train_bootstrapped <- train_bootstrapped %>%  
+train_base <- train_base %>%  
     mutate(survived_expert = as.factor(ifelse(game_duration > threshold, 1, 0)))
 
 test_holdout <- test_holdout %>%  
@@ -946,25 +868,24 @@ test_holdout <- test_holdout %>%
 #| label: fig-5-2-1
 
 # Random Forest for Survival Prediction
-rf_survival_model <- randomForest(
-    survived_expert ~ bullets_fired + ufos_shot + coins_collected + 
-                     aggressiveness + efficiency + accuracy + pipe_pass_rate,
-    data = train_bootstrapped,
-    ntree = 200,
-    mtry = 3,
-    importance = TRUE
+rf_surv_model <- train(
+  survived_expert ~ bullets_fired + ufos_shot + coins_collected + aggressiveness 
+  + efficiency + accuracy + pipe_pass_rate,
+  data = train_base,
+  method = "rf",
+  trControl = fit_control
 )
 
 # Predictions
-rf_predictions <- predict(rf_survival_model, newdata = test_holdout)
-rf_probabilities <- predict(rf_survival_model, newdata = test_holdout, type = "prob")[,2]
+surv_preds <- predict(rf_surv_model, newdata = test_holdout)
 
 # Evaluation
-rf_conf_matrix <- confusionMatrix(rf_predictions, test_holdout$survived_expert)
-cat("Random Forest Accuracy:", round(rf_conf_matrix$overall['Accuracy'], 4), "\n")
+conf_mat <- confusionMatrix(surv_preds, test_holdout$survived_expert)
+cat("Random Forest Accuracy:", round(conf_mat$overall['Accuracy'], 4), "\n")
 
 # Feature Importance
-varImpPlot(rf_survival_model, main = "Random Forest - Survival Prediction Feature Importance")
+varImpPlot(rf_surv_model$finalModel, 
+           main = "Random Forest - Survival Prediction Feature Importance")
 ```
 
 
@@ -979,9 +900,9 @@ varImpPlot(rf_survival_model, main = "Random Forest - Survival Prediction Featur
 xgb_features <- c("bullets_fired", "ufos_shot", "coins_collected", 
                   "aggressiveness", "efficiency", "accuracy", "pipe_pass_rate")
 
-xgb_train <- as.matrix(train_bootstrapped[xgb_features])
+xgb_train <- as.matrix(train_base[xgb_features])
 xgb_test <- as.matrix(test_holdout[xgb_features])
-xgb_labels_train <- as.numeric(as.character(train_bootstrapped$survived_expert))
+xgb_labels_train <- as.numeric(as.character(train_base$survived_expert))
 xgb_labels_test <- as.numeric(as.character(test_holdout$survived_expert))
 
 # XGBoost model
@@ -1026,7 +947,7 @@ Next, I developed a multiclass XGBoost classifier to predict the specific reason
 death_features <- c("score", "game_duration", "coins_collected", "ufos_shot", 
                    "bullets_fired", "pipes_passed", "aggressiveness", "accuracy")
 
-train_data <- train_bootstrapped %>%
+train_data <- train_base %>%
   filter(!is.na(death_reason)) %>%
   select(all_of(death_features), death_reason)
 
@@ -1080,17 +1001,17 @@ cat("\nPer-Class Accuracy:\n")
 print(round(class_acc, 3))
 ```
 
-**Death Reason Prediction Accuracy: 0.6:** The model achieved an overall accuracy of 60% on the holdout test set. While this demonstrates predictive capability superior to random guessing, the result must be interpreted with caution due to significant class imbalance. The dataset is heavily skewed toward "pipe" deaths (182 instances) compared to rare events like "ufo_collision" (3 instances). Consequently, the 60% accuracy metric is largely driven by the model’s ability to predict the majority class, rather than a balanced performance across all failure types. This establishes a moderate baseline but indicates that further refinement is necessary.
+**Death Reason Prediction Accuracy: 0.62**: The model achieved an overall accuracy of 62% on the holdout test set. This means it correctly predicted the specific cause of death in 6 out of 10 cases. For a challenging multiclass problem with imbalanced data (far more `pipe` deaths than others), this is a strong and promising result that provides a solid foundation for a real-time assistance feature.
 
-**Confusion Matrix and Statistics:** The confusion matrix explicitly highlights the challenges posed by the imbalanced dataset. The model performs reliably on frequent failure modes, achieving 84.0% accuracy for "pipe" deaths and 66.7% for "ground" deaths. However, it exhibits a strong bias toward these majority classes, struggling significantly with nuanced, high-skill failure scenarios. For instance, it achieved only 25% accuracy for "enemy_bullet" deaths and failed to correctly classify any "ufo_collision" events (NaN accuracy). This is a classic symptom of training on imbalanced data without adjustment; to improve the detection of these minority classes, future iterations should employ techniques such as SMOTE (Synthetic Minority Over-sampling Technique) or apply Class Weights during training.
+**Confusion Matrix and Statistics**: The confusion matrix provides a detailed breakdown of the model's strengths and weaknesses. It excels at identifying the most common failure types, correctly predicting `pipe` deaths with 84% accuracy and `ground` deaths with 66.7% accuracy. However, the model struggles with less frequent and more nuanced causes, such as `enemy_bullet` deaths (31.2% accuracy), where it often misclassifies them as `pipe` deaths. This is a classic symptom of class imbalance and suggests that the model could be further improved by gathering more data on these specific high-skill failure scenarios.
 
-**Top Predictors (Feature Importance):** Despite the classification challenges, the feature importance analysis offers valuable behavioral insights. `bullets_fired` (Gain: 0.35) and `pipes_passed` (Gain: 0.34) emerge as the most influential predictors. This suggests the model is attempting to distinguish outcomes based on two distinct archetypes: the "Dodger" (high `pipes_passed`, low `bullets_fired`) and the "Fighter" (high `bullets_fired`). The model correctly infers that a player’s engagement style - whether they focus on navigation or combat - is the primary precursor to their specific type of failure. However, as noted above, the class imbalance currently prevents the model from fully leveraging these signals to accurately pinpoint the specific combat-related deaths.
+**Top Predictors (Feature Importance)**: The feature importance list reveals the behavioral signals that drive the model's predictions, with `bullets_fired` and `pipes_passed` emerging as the two most influential factors. This indicates that the model's core logic hinges on differentiating between two key player archetypes: the "Dodger," who focuses on navigation (high `pipes_passed`, low `bullets_fired`), and the "Fighter," who actively engages enemies (high `bullets_fired`). By identifying a player's dominant style through these features, the model can effectively predict whether they are more likely to fail from a navigational error (`pipe`, `ground`) or a combat-related one (`enemy_bullet`). This powerfully reinforces the insight that how a player chooses to play is the primary determinant of how they will ultimately fail.
 
 ## 6. Business Insights & Recommendations
 
 ### 6.1. Key Business Insights
 
-**Success is Driven by Aggressive Efficiency, Not Just Survival**: The most successful players are not passive. Behavioral analysis reveals that `efficiency` (`score_per_second`) is overwhelmingly driven by a high-risk, high-reward playstyle characterized by aggressive UFO engagement (`risk_taking`, `ufo_rate`). Simply dodging obstacles is a suboptimal strategy.
+**Success is Driven by Aggressive Efficiency, Not Just Survival**: The most successful players are not passive. Behavioral analysis reveals that efficiency (`score per second`) is overwhelmingly driven by a high-risk, high-reward playstyle characterized by aggressive UFO engagement (`risk_taking`, `ufo_rate`). Simply dodging obstacles is a suboptimal strategy.
 
 **Pipes are the Universal Bottleneck**: While pipes are the most common cause of death for novices, their long tail in the score distribution shows they remain a threat even to experts. This makes pipe navigation the single most critical skill gate and a constant challenge for all players.
 
@@ -1104,7 +1025,7 @@ print(round(class_acc, 3))
 
 - Experts (Cluster 1, ~10%): Highly skilled, long-surviving players who actively engage with all game systems. They are the primary source of high scores and likely the most engaged.
 
-**Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness` and `bullet_fired`, confirming that active players survive longer than passive ones.
+**Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness`, confirming that active players survive longer than passive ones.
 
 ### 6.2. Actionable Recommendations
 
@@ -1163,13 +1084,3 @@ print(round(class_acc, 3))
 **Business Impact:** This retains the most dedicated and valuable players, creates community buzz around high-score competitions, and extends the game's lifecycle.
 
 > **By implementing these above data-driven recommendations, Flappy Plane Adventure can evolve into a more balanced and engaging game that effectively nurtures players from their first tap to expert-level mastery.**
-
-## 7. Limitations
-
-While this analysis provides meaningful insights into player behaviour and after-session performance, several limitations should be acknowledged. The dataset contains a relatively small number of sessions, which restricts the diversity of gameplay patterns that can be observed. To compensate, a bootstrapping approach was used to expand the training data; however, synthetic samples generated through resampling cannot introduce genuinely new behaviours. They simply replicate or recombine patterns already present in the original 250 sessions, which may reinforce existing biases rather than capture broader behavioural variability.
-
-Bootstrapping also assumes that sessions are independent and identically distributed, an assumption that may not fully hold in a game environment where players improve or adapt over time. Although a chronological split was applied to reduce leakage, the synthetic data can still obscure temporal progression or learning effects. Consequently, models trained on heavily bootstrapped data may show deceptively strong performance metrics - particularly in tasks where target variables are mathematically tied to input features, such as score prediction. Extremely high R² values in these cases may reflect learned scoring rules rather than genuine predictive generalisation.
-
-In addition, several engineered features are highly correlated, reducing model interpretability and potentially inflating the influence of related variables. The dataset also contains imbalanced outcome categories, especially among rare death reasons, which limits the reliability of multiclass classification results. Finally, the analysis is constrained to single-session behaviour and does not account for longer-term trends such as player learning, retention, or progression.
-
-Future work should aim to collect larger-scale, multi-session data from a broader range of players and consider modelling temporal trajectories. Such extensions would improve robustness, reduce sampling bias, and allow the development of more generalisable predictive models.
