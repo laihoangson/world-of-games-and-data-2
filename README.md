@@ -51,8 +51,8 @@ The backend analytics API and PostgreSQL database are fully deployed and hosted 
 - Behavioral feature engineering (aggressiveness, efficiency, risk-taking, etc)
 
 **🤖 Machine Learning & Predictive Modeling**
-- **Data Trained**: 250-sample training dataset
-- **Holdout Validation**: 50-sample test set for unbiased model evaluation
+- **Data Trained**: 504-sample trained dataset
+- **Holdout Validation**: 102-sample test set for unbiased model evaluation
 - **Score Regression**: Random Forest model with near-perfect accuracy (R² = 0.996) for final score prediction
 - **Survival Prediction**: Binary classification to forecast player survival beyond 30-second expert threshold (98% accuracy)
 - **Death Reason Classification**: Multiclass XGBoost model predicting specific causes of player failure
