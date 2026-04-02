@@ -667,77 +667,99 @@ ggplotly(efficiency_plot)
 
 In essence, the chart proves that simply being aggressive is not enough; success is defined by the efficiency of that aggression, a trait clearly demonstrated by the higher skill tiers.
 
-### 2.5 Clusterable Structure Check
+## 3. Segmentation (Unsupervised Learning)
 
-Before attempting to segment the player base, it's essential to determine if the data contains meaningful, inherent structures. This section uses Principal Component Analysis (PCA), a powerful dimensionality reduction technique, to achieve this. PCA condenses multiple behavioral and performance variables into two principal components (PC1 and PC2) that capture the majority of the data's variance. By plotting these components, we can visually inspect the data for natural groupings, which validates the use of a clustering algorithm like K-Means in the next section.
+This section uses unsupervised learning to discover natural groupings or "personas" among players based on their in-game behavior. Unlike supervised learning which requires labeled data, segmentation is performed on the full dataset (N=300) prior to any train/test split. This ensures cluster definitions capture the complete range of player behaviors and allows consistent interpretation across all subsequent analyses.
 
-```{r}
-#| fig-width: 8
-#| fig-height: 5
-#| fig-cap: "PCA Loadings - Meaning of Principal Components"
-#| label: fig-2-5-2
+### 3.1 Principal Component Analysis (PCA)
 
-cluster_data <- game_data_enhanced %>%
-    select(score, game_duration, coins_collected, bullets_fired,
-           ufos_shot, pipes_passed, aggressiveness, efficiency,
-           accuracy, risk_taking) %>%
-    scale()
-
-pca_result <- prcomp(cluster_data, scale. = TRUE)
-
-# PCA Loadings - Meaning of Principal components
-pca_loadings <- as.data.frame(pca_result$rotation[, 1:2])
-pca_loadings$feature <- rownames(pca_loadings)
-
-loadings_plot <- ggplot(pca_loadings, aes(x = PC1, y = PC2, label = feature)) +
-    geom_point(size = 3, color = "blue") +
-    geom_text_repel(size = 4, max.overlaps = 10) +
-    geom_vline(xintercept = 0, linetype = "dashed", alpha = 0.5) +
-    geom_hline(yintercept = 0, linetype = "dashed", alpha = 0.5) +
-    labs(title = "PCA Loadings - Meaning of Principal Components",
-         x = paste0("PC1 (", round(100 * pca_result$sdev[1]^2/sum(pca_result$sdev^2), 1), "%)"),
-         y = paste0("PC2 (", round(100 * pca_result$sdev[2]^2/sum(pca_result$sdev^2), 1), "%)")) +
-    theme_minimal()
-
-loadings_plot
-```
-
-@fig-2-5-2 is essential for interpreting the PCA results, as it explains the meaning behind the two principal components that summarize 87.3% of the player behavior variance. Each point represents an original variable, and its position reveals its contribution to PC1 and PC2.
-
-PC1 - "Progression & Skill" (60.8%): This interpretation remains correct. All the variables directly associated with successful outcomes - `score`, `game_duration`, `pipes_passed`, `coins_collected`, `ufos_shot`, and `bullets_fired` - have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
-
-PC2 - "Playstyle: Passive Survival vs. Active Combat" (26.5%): This is where the crucial correction lies.
-
-- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: `game_duration`, `coins_collected`, and `pipes_passed.` These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Passive Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
-
-- The variables with negative loadings (pointing downwards) are the key behavioral ratios: `aggressiveness`, `risk_taking`, `efficiency`, and, critically, `accuracy.` These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
-
-## 3. Data Splitting & Cross-Validation Strategy
-
-Given the dataset's size (300 samples), artificially inflating the data through simple bootstrapping risks massive overfitting, where models memorize duplicated records rather than learning underlying patterns. To build robust models, I rely on K-Fold Cross-Validation during training and a strict holdout set for final evaluation.
-
-I split the data chronologically to mimic a real-world scenario (predicting future sessions based on past ones), reserving the last 50 sessions as our unbiased test set. The remaining 250 sessions form our base training set.
+Before clustering, PCA is applied to understand the underlying structure of player behavior and verify that meaningful groupings exist in the data.
 
 ```{r}
-# Sort by time and split data
-game_sorted <- game_data_enhanced %>% arrange(start_time)
-train_base <- head(game_sorted, 250)
-test_holdout <- tail(game_sorted, 50)
+# Features for PCA 
+pca_features <- game_data_enhanced %>%
+  select(score, game_duration, coins_collected, bullets_fired,
+         ufos_shot, pipes_passed, aggressiveness, efficiency,
+         accuracy, risk_taking)
 
-# Define Cross-Validation strategy for caret
-fit_control <- trainControl(
-  method = "cv", 
-  number = 5,
-  savePredictions = "final"
-)
+# Perform PCA
+set.seed(123)
+pca_result <- prcomp(pca_features, scale. = TRUE)
 
-cat("Base Train Size (for CV):", nrow(train_base), "\n")
-cat("Holdout Test Size:", nrow(test_holdout), "\n")
+# Summary of variance explained
+pca_var <- summary(pca_result)$importance %>%
+  t() %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column(var = "PC")
+
+kable(pca_var, caption = "Variance Explained by Each Principal Component")
+
+# Visualize loadings
+fviz_pca_biplot(pca_result,
+                geom.ind = "point",     
+                col.ind = "lightgreen",     
+                pointshape = 16,
+                pointsize = 2,
+                arrowsize = 0.8,
+                label = "var",         
+                repel = TRUE,
+                title = "PCA Biplot",
+                ggtheme = theme_minimal())
 ```
 
-## 4. Segmentation (Unsupervised Learning)
+The first two principal components capture 87.3% of total variance in player behavior.
 
-This section uses unsupervised learning to discover natural groupings or "personas" among the players based on their in-game behavior, without any predefined labels. By applying the K-Means clustering algorithm to key behavioral and performance metrics, the goal is to segment the player base into a few distinct clusters. Analyzing the characteristics of each cluster can reveal different types of playstyles and skill levels.
+```{r}
+# Visualize loadings
+fviz_pca_biplot(pca_result,
+                geom.ind = "point",     
+                col.ind = "lightgreen",     
+                pointshape = 16,
+                pointsize = 2,
+                arrowsize = 0.8,
+                label = "var",         
+                repel = TRUE,
+                title = "PCA Biplot",
+                ggtheme = theme_minimal())
+```
+
+The PCA biplot above visualizes both variables (arrows) and observations (points). The direction and length of each arrow indicate how much that variable contributes to the two principal components.
+
+PC1 - "Progression & Skill" (60.8%): All the variables directly associated with successful outcomes - `score`, `game_duration`, `pipes_passed`, `coins_collected`, `ufos_shot`, and `bullets_fired` - have large, positive loadings on the x-axis. This means that a player's position along the horizontal axis is a direct and powerful measure of their overall skill and progression within a single game session. Moving from left to right signifies a transition from a low-performing session to a high-performing one.
+
+PC2 - "Playstyle: Passive Survival vs. Active Combat" (26.5%):
+
+- The variables with positive loadings (pointing upwards) are primarily the raw accumulation metrics: `game_duration`, `coins_collected`, and `pipes_passed.` These represent a playstyle focused on longevity and steady progress. A high score on this axis indicates a "Survival" approach, where the main goal is to dodge obstacles and last as long as possible.
+
+- The variables with negative loadings (pointing downwards) are the key behavioral ratios: `aggressiveness`, `risk_taking`, `efficiency`, and,`accuracy.` These metrics measure the intensity and effectiveness of a player's actions. A low score on this axis indicates an "Active Combat" or "High-Efficiency" playstyle, where the player is actively engaging with enemies, taking risks to shoot UFOs, and maximizing their score-per-second.
+
+### 3.2 K-Means Clustering
+
+With the clusterable structure confirmed by PCA, K-Means clustering is applied to identify distinct player personas.
+
+```{r}
+# Features for clustering (full dataset)
+features_to_cluster <- game_data_enhanced %>%
+  select(score, game_duration, coins_collected, bullets_fired,
+         ufos_shot, pipes_passed, aggressiveness, efficiency,
+         accuracy, risk_taking)
+
+# Scale features
+scaled_features <- scale(features_to_cluster)
+
+# Determine optimal number of clusters (elbow method)
+set.seed(123)
+wss <- sapply(1:10, function(k) {
+  kmeans(scaled_features, centers = k, nstart = 25)$tot.withinss
+})
+
+plot(1:10, wss, type = "b", main = "Elbow Method for Optimal k")
+```
+
+The elbow method was used to determine the optimal number of clusters. 
+The WSS (within-cluster sum of squares) decreased rapidly from k=1 to k=3, 
+then flattened considerably beyond k=3. This elbow at k=3 indicates that 
+three clusters optimally balance model fit with parsimony.
 
 ```{r}
 #| fig-width: 7
@@ -745,32 +767,29 @@ This section uses unsupervised learning to discover natural groupings or "person
 #| fig-cap: "Enhanced Player Segmentation (K-Means)"
 #| label: fig-4
 
-# Features for clustering
-features_to_cluster <- train_base %>% 
-    select(score, game_duration, coins_collected, bullets_fired, ufos_shot, 
-           pipes_passed, aggressiveness, efficiency, accuracy, risk_taking)
-
-scaled_features <- scale(features_to_cluster)
-
-# KMeans clustering with 3 clusters
-set.seed(123)
+# K-Means with 3 clusters (determined by elbow method)
 kmeans_model <- kmeans(scaled_features, centers = 3, nstart = 25)
-train_base$cluster <- as.factor(kmeans_model$cluster)
+
+# Add cluster labels to full dataset
+game_data_enhanced$cluster <- as.factor(kmeans_model$cluster)
 
 # Visualize clusters
-fviz_cluster(kmeans_model, data = scaled_features, geom = "point", 
-             ellipse.type = "convex", ggtheme = theme_minimal(), 
-             main = "Player Segmentation (K-Means)")
+fviz_cluster(kmeans_model, data = scaled_features,
+             geom = "point", ellipse.type = "convex",
+             theme = theme_minimal(),
+             main = "Figure 10: Player Segmentation (K-Means)")
 ```
 
 @fig-4 visualizes the results of the K-Means clustering. Each point represents a game session, and its color corresponds to the cluster it was assigned to. The data is plotted on the first two principal components (Dim1 and Dim2), which capture the most variance in the data. The clear separation between the three colored groups (red, green, and blue) indicates that the algorithm successfully identified three distinct patterns of player behavior.
+
+### 3.3 Cluster Profiles
 
 ```{r}
 #| label: tbl-4
 #| tbl-cap: "Cluster profiles"
 
 # Cluster profiles
-cluster_profiles <- train_base %>%
+cluster_profiles <- game_data_enhanced %>%
     group_by(cluster) %>%
     rename(`Cluster` = cluster) %>%
     summarise(
@@ -791,75 +810,156 @@ cluster_profiles %>% kable()
 
 @tbl-4 provides a quantitative summary of the three identified clusters, showing the average value of key metrics for each group. This is where the player personas become clear:
 
-- Cluster 1 (23 samples): The "Experts". This group has a very high average score (53.2), a long game duration (37s), and high numbers for coins, UFOs shot, and bullets fired. They are highly skilled and engaged players.
+- Cluster 1 (34 samples): The "Experts". This group has a very high average score (48.2), a long game duration (34s), and high numbers for coins, UFOs shot, and bullets fired. They are highly skilled and engaged players.
 
-- Cluster 2 (75 samples): The "Novices". This group has an extremely low average score (0.4) and a very short game duration (1.4s). These are likely new players who fail almost immediately and are at the highest risk of churning.
+- Cluster 2 (79 samples): The "Novices". This group has an extremely low average score (0.4) and a very short game duration (1.3s). These are likely new players who fail almost immediately and are at the highest risk of churning.
 
-- Cluster 3 (152 samples): The "Average Players". This group sits between the other two, with a moderate average score (10.8) and game duration (7.6s). They represent the bulk of the player base who have passed the initial learning curve but have not yet reached expert level.
+- Cluster 3 (187 samples): The "Average Players". This group sits between the other two, with a moderate average score (11.2) and game duration (7.8s). They represent the bulk of the player base who have passed the initial learning curve but have not yet reached expert level.
+
+## 4. Data Splitting & Cross-Validation Strategy
+
+Given the dataset's size (300 samples), a robust evaluation strategy is essential to prevent overfitting. Since each game session is independent (no temporal carryover), a chronological split is unnecessary. Instead, I use stratified random splitting to preserve class distributions.
+
+### 4.1. Stratified Split
+
+Due to severe class imbalance in death_reason (pipe: 182, ground: 75, enemy_bullet: 32, ceiling: 8, ufo_collision: 3), a stratified split is critical to ensure that rare death reasons appear in both training and test sets.
+
+Due to extreme rarity (n=3, 1% of data), 'ufo_collision' deaths were excluded from multiclass classification. Reliable prediction of such rare events would require substantially more data.
+
+For all other analyses (score regression, survival prediction), ufo_collision cases are retained as they contain valid score and duration information.
+
+```{r}
+# Remove ufo_collision for multiclass classification tasks
+game_data_multiclass <- game_data_enhanced %>%
+  filter(death_reason != "ufo_collision")
+
+# Now 297 samples remain
+set.seed(123)
+train_index <- createDataPartition(
+  game_data_multiclass$death_reason,
+  p = 250/300,  # Use original proportion: 250/300 = 0.8333
+  list = FALSE
+)
+
+train_base <- game_data_multiclass[train_index, ]
+test_holdout <- game_data_multiclass[-train_index, ]
+
+# Verify all classes appear in test
+cat("Training set death_reason distribution:\n")
+print(prop.table(table(train_base$death_reason)))
+
+cat("\nTest set death_reason distribution:\n")
+print(prop.table(table(test_holdout$death_reason)))
+```
+
+### 4.2 Cross-Validation Strategy
+
+For model training and hyperparameter tuning, I use 5-fold cross-validation with stratification.
+
+```{r}
+fit_control <- trainControl(
+  method = "cv",
+  number = 5,
+  savePredictions = "final",
+  classProbs = TRUE
+)
+
+cat("Base Train Size (for CV):", nrow(train_base), "\n")
+cat("Holdout Test Size:", nrow(test_holdout), "\n")
+```
+
+Due to the stratified split ensuring representation of all death reasons, 
+the resulting training set contains 249 sessions and the test set contains 
+48 sessions (total 297 after excluding ufo_collision).
 
 ## 5. Predictive Modeling (Supervised Learning)
 
-Leveraging the insights and the enhanced dataset, this section focuses on building predictive models using supervised learning. The objective is to tackle three distinct business problems: predicting a player's final score (Score Regression), predicting whether a player will survive longer than a 30-second threshold (Survival Prediction), and predicting the specific cause of death (Multiclass Classification). Advanced algorithms like Random Forest and XGBoost are trained on the train base data and evaluated on the holdout test set.
+Leveraging the insights from EDA and the enhanced dataset, this section focuses on building predictive models using supervised learning. Three distinct business problems are addressed:
+
+- Score Regression - Predicting a player's final score
+
+- Survival Prediction - Predicting whether a player survives beyond the 30-second expert threshold
+
+- Death Reason Prediction - Predicting the specific cause of death (multiclass classification)
+
+All models are trained on train_base (249 sessions) and evaluated on test_holdout (48 sessions). For each task, we implement Random Forest and/or XGBoost algorithms with 5-fold cross-validation.
 
 ### 5.1 Score Regression
 
 I implemented a Random Forest regressor using both raw and behavioral features to predict player scores. The model was trained on the train base data and evaluated on a holdout test set using RMSE and R-squared metrics to assess prediction accuracy.
 
 ```{r}
-# Define features
-features_enhanced <- c("coins_collected", "ufos_shot", "bullets_fired", 
-                      "game_duration", "pipes_passed", "aggressiveness",
-                      "efficiency", "accuracy", "risk_taking")
+#| fig-cap: "Feature Importance for Score Prediction"
+#| label: fig-5-1
 
-# Random Forest with enhanced features
+# Define enhanced features
+features_enhanced <- c(
+  "coins_collected", "ufos_shot", "bullets_fired",
+  "game_duration", "pipes_passed", "aggressiveness",
+  "efficiency", "accuracy", "risk_taking"
+)
+
+# Train Random Forest for score prediction
+fit_control_reg <- trainControl(
+  method = "cv",
+  number = 5,
+  savePredictions = "final"
+)
+
 set.seed(123)
 rf_score_model <- train(
   as.formula(paste("score ~", paste(features_enhanced, collapse = "+"))),
   data = train_base,
   method = "rf",
-  trControl = fit_control,
-  importance = TRUE
+  trControl = fit_control_reg,
+  importance = TRUE,
+  ntree = 500
 )
 
-# Predict and assess
-rf_preds <- predict(rf_score_model, newdata = test_holdout)
-rmse_val <- RMSE(rf_preds, test_holdout$score)
-r2_val <- R2(rf_preds, test_holdout$score)
+# Predict on holdout test set
+rf_score_preds <- predict(rf_score_model, newdata = test_holdout)
 
-cat("Holdout Test Performance:\n")
+# Evaluate performance
+rmse_val <- RMSE(rf_score_preds, test_holdout$score)
+r2_val <- R2(rf_score_preds, test_holdout$score)
+
+cat("=== Score Regression Results ===\n")
 cat("RMSE:", round(rmse_val, 2), "\n")
 cat("R-Squared:", round(r2_val, 4), "\n")
-```
-
-RMSE: 1 and R-Squared: 0.9945: These are performance metrics for the Random Forest model predicting the final score. The RMSE (Root Mean Squared Error) of 1 indicates that, on average, the model's score predictions are off by only 1 points, which is very low. The R-Squared value of 0.9945 is extremely high, signifying that the model can explain 99.45% of the variability in the score, making it an exceptionally accurate predictor.
-
-```{r}
-#| fig-width: 7
-#| fig-height: 5
-#| fig-cap: "Enhanced Feature Importance for Score Prediction"
-#| label: fig-5-1
 
 # Variable importance
-varImpPlot(rf_score_model$finalModel, 
+varImpPlot(rf_score_model$finalModel,
            main = "Enhanced Feature Importance for Score Prediction")
 ```
 
-@fig-5-1 reveals which variables were most influential for the Random Forest model's predictions, using two distinct metrics: %IncMSE (increase in model error if the feature is removed) and IncNodePurity (contribution to decision-making). Both metrics are in strong agreement, identifying a clear hierarchy of importance. 
+The near-perfect R² (0.9962) and low RMSE (0.84) confirm that the model has essentially reverse-engineered the game's scoring formula. The feature importance plot (@fig-5-1) shows that `ufos_shot` and `coins_collected` are the dominant predictors, which is expected as they are the direct mathematical inputs to the score calculation (shooting a single UFO adds +3 to the score, while collecting a coin add +1). `pipes_passed` appears as the next most important feature because it serves as a proxy for opportunity - players who navigate more pipes have more time and space to collect coins and shoot UFOs.
 
-The most critical features are `ufos_shot` and `coins_collected`, which is logical as these are the two direct inputs to the final score calculation. The model correctly learned that the number of high-value UFOs shot is the single best predictor of a player's score (shooting a single UFO adds +3 to the score, while collecting a coin add +1). Following that, `pipes_passed` is ranked as the next most important predictor. It does not contribute points directly but serve as powerful proxies for opportunity. A player who navigates more pipes inherently has more time and space to accumulate points by collecting coins and shooting UFOs.
+The regression results validate that my feature engineering correctly captured the game's mechanics. For genuine behavioural prediction, future work should focus on non-deterministic targets such as survival time or death reason.
 
 ### 5.2 Survival Prediction
 
 I built binary classification models (Random Forest and XGBoost) to predict whether players would survive beyond the 30-second expert threshold. The models utilized both action counts and behavioral rates to identify patterns associated with longer survival.
 
+**5.2.1 Data Preparation**
+
 ```{r}
 threshold <- 30
-train_base <- train_base %>%  
-    mutate(survived_expert = as.factor(ifelse(game_duration > threshold, 1, 0)))
 
-test_holdout <- test_holdout %>%  
-    mutate(survived_expert = as.factor(ifelse(game_duration > threshold, 1, 0)))
+# Create binary target variable with valid factor names
+train_base <- train_base %>%
+  mutate(survived_expert = as.factor(ifelse(game_duration > threshold, "Survived", "Died")))
+
+test_holdout <- test_holdout %>%
+  mutate(survived_expert = as.factor(ifelse(game_duration > threshold, "Survived", "Died")))
+
+# Check class balance
+cat("=== Survival Class Distribution (Training) ===\n")
+print(table(train_base$survived_expert))
+cat("\nProportions:\n")
+print(prop.table(table(train_base$survived_expert)))
 ```
+
+**5.2.2 Random Forest Model**
 
 ```{r}
 #| fig-width: 7
@@ -867,27 +967,45 @@ test_holdout <- test_holdout %>%
 #| fig-cap: "Random Forest - Survival Prediction Feature Importance"
 #| label: fig-5-2-1
 
-# Random Forest for Survival Prediction
-rf_surv_model <- train(
-  survived_expert ~ bullets_fired + ufos_shot + coins_collected + aggressiveness 
-  + efficiency + accuracy + pipe_pass_rate,
-  data = train_base,
-  method = "rf",
-  trControl = fit_control
+# Define features for survival prediction
+survival_features <- c(
+  "bullets_fired", "ufos_shot", "coins_collected",
+  "aggressiveness", "efficiency", "accuracy", "pipe_pass_rate"
 )
 
-# Predictions
-surv_preds <- predict(rf_surv_model, newdata = test_holdout)
+# Train Random Forest
+set.seed(123)
+rf_surv_model <- train(
+  as.formula(paste("survived_expert ~", paste(survival_features, collapse = "+"))),
+  data = train_base,
+  method = "rf",
+  trControl = fit_control,
+  importance = TRUE,
+  ntree = 500
+)
 
-# Evaluation
-conf_mat <- confusionMatrix(surv_preds, test_holdout$survived_expert)
-cat("Random Forest Accuracy:", round(conf_mat$overall['Accuracy'], 4), "\n")
+# Predict on holdout test set
+rf_surv_preds <- predict(rf_surv_model, newdata = test_holdout)
 
-# Feature Importance
-varImpPlot(rf_surv_model$finalModel, 
+# Evaluate
+rf_conf_mat <- confusionMatrix(rf_surv_preds, test_holdout$survived_expert)
+
+cat("\n=== Random Forest Survival Prediction ===\n")
+cat("Accuracy:", round(rf_conf_mat$overall['Accuracy'], 4), "\n")
+cat("Kappa:", round(rf_conf_mat$overall['Kappa'], 4), "\n")
+cat("\nConfusion Matrix:\n")
+print(rf_conf_mat$table)
+
+# Feature importance
+varImpPlot(rf_surv_model$finalModel,
            main = "Random Forest - Survival Prediction Feature Importance")
 ```
 
+The Random Forest model achieved 95.8% accuracy on the test set. However, examining the confusion matrix reveals a critical problem. The model correctly predicted all 46 non-survivors but failed to predict any of the 2 survivors - it predicted "Died" for every single test session. The Kappa score of 0 confirms that the model is essentially guessing the majority class rather than learning to identify survivors.
+
+High accuracy (95.8%) is misleading in imbalanced classification. The model learned to predict the majority class (Died) for all cases but completely failed to identify survivors. This is a classic example of why accuracy alone is insufficient for evaluating models on imbalanced data.
+
+**5.2.3 XGBoost Model**
 
 ```{r}
 #| fig-width: 7
@@ -895,117 +1013,217 @@ varImpPlot(rf_surv_model$finalModel,
 #| fig-cap: "XGBoost Feature Importance"
 #| label: fig-5-2-2
 
-# XGBoost for Survival Prediction
-# Prepare data for XGBoost
-xgb_features <- c("bullets_fired", "ufos_shot", "coins_collected", 
-                  "aggressiveness", "efficiency", "accuracy", "pipe_pass_rate")
-
-xgb_train <- as.matrix(train_base[xgb_features])
-xgb_test <- as.matrix(test_holdout[xgb_features])
-xgb_labels_train <- as.numeric(as.character(train_base$survived_expert))
-xgb_labels_test <- as.numeric(as.character(test_holdout$survived_expert))
-
-# XGBoost model
-xgb_model <- xgboost(
-    data = xgb_train,
-    label = xgb_labels_train,
-    nrounds = 100,
-    objective = "binary:logistic",
-    eval_metric = "logloss",
-    max_depth = 6,
-    eta = 0.1,
-    verbose = 0
+# Prepare features
+xgb_surv_features <- c(
+  "bullets_fired", "ufos_shot", "coins_collected",
+  "aggressiveness", "efficiency", "accuracy", "pipe_pass_rate"
 )
 
-# Predictions
-xgb_probabilities <- predict(xgb_model, xgb_test)
-xgb_predictions <- ifelse(xgb_probabilities > 0.5, 1, 0)
+# Convert to matrix
+xgb_train <- as.matrix(train_base[, xgb_surv_features])
+xgb_test <- as.matrix(test_holdout[, xgb_surv_features])
 
-# Evaluation
-xgb_conf_matrix <- confusionMatrix(as.factor(xgb_predictions), as.factor(xgb_labels_test))
-cat("XGBoost Accuracy:", round(xgb_conf_matrix$overall['Accuracy'], 4), "\n")
+# Convert labels to numeric 0/1 (NOT using as.numeric on factor)
+xgb_labels_train <- ifelse(train_base$survived_expert == "Survived", 1, 0)
+xgb_labels_test <- ifelse(test_holdout$survived_expert == "Survived", 1, 0)
 
-# Feature Importance
-xgb_importance <- xgb.importance(feature_names = xgb_features, model = xgb_model)
-xgb.plot.importance(xgb_importance, main = "XGBoost Feature Importance")
-```
-
-Random Forest Accuracy: 0.98 and XGBoost Accuracy: 0.96: These metrics show the accuracy of two different models in predicting whether a player's game duration would exceed 30 seconds. The Random Forest model achieved 98% accuracy, while the XGBoost model achieved 96% accuracy. Both models are highly effective at identifying players who will likely survive for a significant amount of time.
-
-The feature importance plots from both the Random Forest and XGBoost models provide a consistent and powerful narrative about what behaviors define a successful, long-surviving player. @fig-5-2-1 and @fig-5-2-2 both unequivocally identify `coins_collected` as the single most dominant predictor of survival. This insight goes deeper than the score value of coins; a high count of collected coins serves as a strong proxy for skilful navigation. To collect coins, a player must successfully and consistently manoeuvre through the dangerous pipe gaps, demonstrating mastery over the game's core challenge. 
-
-Beyond simple navigation, both models highlight the significance of proactive engagement. `aggressiveness` and `bullets_fired` consistently rank as the next most important features. This indicates that players who are actively participating in the game by shooting are statistically far more likely to survive longer than passive players who only focus on dodging. The models have learned that an active, offensive posture is a key attribute of a competent player. In essence, the ability to survive is not just about avoiding obstacles, but about having the skill to actively engage with the game's systems while doing so.
-
-### 5.3 Death Reason Prediction (Multiclass Classification)
-
-Next, I developed a multiclass XGBoost classifier to predict the specific reason for player deaths based on their in-game behavior and performance metrics. The model was evaluated using overall accuracy and per-class performance metrics.
-
-```{r}
-# DEATH REASON PREDICTION 
-
-# 1. Data Preparation
-death_features <- c("score", "game_duration", "coins_collected", "ufos_shot", 
-                   "bullets_fired", "pipes_passed", "aggressiveness", "accuracy")
-
-train_data <- train_base %>%
-  filter(!is.na(death_reason)) %>%
-  select(all_of(death_features), death_reason)
-
-test_data <- test_holdout %>%
-  filter(!is.na(death_reason)) %>%
-  select(all_of(death_features), death_reason)
-
-# 2. Train XGBoost Model
-x_train <- as.matrix(train_data[death_features])
-y_train <- as.integer(train_data$death_reason) - 1
-x_test <- as.matrix(test_data[death_features])
-y_test <- as.integer(test_data$death_reason) - 1
-
-num_classes <- length(unique(y_train))
-
-xgb_model <- xgboost(
-  data = x_train,
-  label = y_train,
+# Train XGBoost
+set.seed(123)
+xgb_surv_model <- xgboost(
+  data = xgb_train,
+  label = xgb_labels_train,
   nrounds = 100,
-  objective = "multi:softprob",
-  num_class = num_classes,
-  eval_metric = "mlogloss",
+  objective = "binary:logistic",
+  eval_metric = "logloss",
   max_depth = 6,
   eta = 0.1,
   verbose = 0
 )
 
-# 3. Predictions & Evaluation
-predictions_prob <- predict(xgb_model, x_test, reshape = TRUE)
-predicted_classes <- apply(predictions_prob, 1, which.max) - 1
+# Predictions
+xgb_probabilities <- predict(xgb_surv_model, xgb_test)
+xgb_predictions <- ifelse(xgb_probabilities > 0.5, 1, 0)
 
-accuracy <- mean(predicted_classes == y_test)
-cat("Death Reason Prediction Accuracy:", round(accuracy, 4), "\n")
+# Evaluate
+xgb_accuracy <- mean(xgb_predictions == xgb_labels_test)
 
-# 4. Detailed Analysis
-class_names <- levels(train_data$death_reason)
-predicted_factor <- factor(predicted_classes, levels = 0:(num_classes-1), labels = class_names)
-actual_factor <- factor(y_test, levels = 0:(num_classes-1), labels = class_names)
+# Calculate additional metrics
+xgb_precision <- sum(xgb_predictions == 1 & xgb_labels_test == 1) / sum(xgb_predictions == 1)
+xgb_recall <- sum(xgb_predictions == 1 & xgb_labels_test == 1) / sum(xgb_labels_test == 1)
+xgb_f1 <- 2 * (xgb_precision * xgb_recall) / (xgb_precision + xgb_recall)
 
-conf_matrix <- confusionMatrix(predicted_factor, actual_factor)
-print(conf_matrix)
+cat("\n=== XGBoost Survival Prediction ===\n")
+cat("Accuracy:", round(xgb_accuracy, 4), "\n")
+cat("Precision:", round(xgb_precision, 4), "\n")
+cat("Recall:", round(xgb_recall, 4), "\n")
+cat("F1-Score:", round(xgb_f1, 4), "\n")
 
-# 5. Feature Importance & Insights
-importance <- xgb.importance(feature_names = death_features, model = xgb_model)
-print("Top Predictors:")
-print(importance)
+# Confusion matrix
+cat("\nConfusion Matrix:\n")
+conf_mat <- table(
+  Predicted = xgb_predictions,
+  Actual = xgb_labels_test
+)
+rownames(conf_mat) <- c("Predicted_Died", "Predicted_Survived")
+colnames(conf_mat) <- c("Actual_Died", "Actual_Survived")
+print(conf_mat)
 
-# Per-class accuracy
-class_acc <- diag(conf_matrix$table) / colSums(conf_matrix$table)
-cat("\nPer-Class Accuracy:\n")
-print(round(class_acc, 3))
+# Feature importance
+xgb_importance <- xgb.importance(feature_names = xgb_surv_features, model = xgb_surv_model)
+cat("\nFeature Importance (Gain):\n")
+print(xgb_importance[, .(Feature, Gain)])
+
+# Plot importance
+xgb.plot.importance(xgb_importance, 
+                    main = "XGBoost Feature Importance for Survival Prediction")
 ```
 
-**Death Reason Prediction Accuracy: 0.62:** The model achieved an overall accuracy of 60% on the holdout test set. While this demonstrates predictive capability superior to random guessing, the result must be interpreted with caution due to significant class imbalance. The dataset is heavily skewed toward "pipe" deaths (182 instances) compared to rare events like "ufo_collision" (3 instances). Consequently, the 60% accuracy metric is largely driven by the model’s ability to predict the majority class, rather than a balanced performance across all failure types. This establishes a moderate baseline but indicates that further refinement is necessary.
+The XGBoost model performed significantly better than Random Forest. It achieved 97.9% accuracy with perfect precision (100%) for survivors - when the model predicted "Survived," it was always correct. However, recall for survivors was only 50%, meaning the model correctly identified only 1 out of 2 survivors in the test set.
 
-**Confusion Matrix and Statistics:** The confusion matrix explicitly highlights the challenges posed by the imbalanced dataset. The model performs reliably on frequent failure modes, achieving 84.0% accuracy for "pipe" deaths and 66.7% for "ground" deaths. However, it exhibits a strong bias toward these majority classes, struggling significantly with nuanced, high-skill failure scenarios. For instance, it achieved only 31.2% accuracy for "enemy_bullet" deaths and failed to correctly classify any "ufo_collision" events (NaN accuracy). This is a classic symptom of training on imbalanced data without adjustment; to improve the detection of these minority classes, future iterations should employ techniques such as SMOTE (Synthetic Minority Over-sampling Technique) or apply Class Weights during training.
+**5.2.4 Key Insights from Survival Prediction**
 
-**Top Predictors (Feature Importance):** Despite the classification challenges, the feature importance analysis offers valuable behavioral insights. `bullets_fired` (Gain: 0.3) and `pipes_passed` (Gain: 0.23) emerge as the most influential predictors. This suggests the model is attempting to distinguish outcomes based on two distinct archetypes: the "Dodger" (high `pipes_passed`, low `bullets_fired`) and the "Fighter" (high `bullets_fired`). The model correctly infers that a player’s engagement style - whether they focus on navigation or combat - is the primary precursor to their specific type of failure. However, as noted above, the class imbalance currently prevents the model from fully leveraging these signals to accurately pinpoint the specific combat-related deaths.
+The most important finding is that `coins_collected` (68.5% importance) overwhelmingly dominates survival prediction. This does not mean collecting coins causes survival. Rather, coin collection is a behavioral signature of competent navigation. Players who can safely pass through pipes will naturally collect coins along the way. Players who cannot navigate pipes die immediately and collect zero coins.
+
+Beyond simple navigation, both models highlight the significance of proactive engagement. `aggressiveness` and `bullets_fired` consistently rank as the next most important features. Active players who engage with enemies are statistically far more likely to survive longer than passive players who only focus on dodging. The models have learned that an offensive posture is a key attribute of competent players.
+
+However, with only 12 survivors (4.8%) in training data, perfect recall is statistically impossible. The XGBoost model's 50% recall is actually reasonable given the severe class imbalance. Collecting more data from expert players would improve performance.
+
+### 5.3 Death Reason Prediction (Multiclass Classification)
+
+This task predicts the specific cause of player death based on in-game behavior. It is the most challenging of the three tasks due to:
+
+- Class imbalance (pipe: 182, ground: 75, enemy_bullet: 32, ceiling: 8)
+
+- Subtle behavioral differences between failure modes
+
+- Note: 'ufo_collision' (n=3) was excluded due to extreme rarity
+
+**5.3.1 Data Preparation**
+
+```{r}
+# Features for death reason prediction
+death_features <- c(
+  "score", "game_duration", "coins_collected", "ufos_shot",
+  "bullets_fired", "pipes_passed", "aggressiveness", "accuracy"
+)
+
+# Class distribution in training set
+train_data <- train_base %>%
+  filter(!is.na(death_reason)) %>%
+  select(all_of(death_features), death_reason)
+
+train_dist <- as.data.frame(table(train_data$death_reason))
+colnames(train_dist) <- c("Death Reason", "Count")
+train_dist$Proportion <- round(train_dist$Count / sum(train_dist$Count), 4)
+
+kable(train_dist, caption = "Training Class Distribution",
+      align = "c", digits = 4)
+```
+
+**5.3.2 Model Training and Evaluation**
+
+```{r}
+# Features for death reason prediction
+death_features <- c(
+  "score", "game_duration", "coins_collected", "ufos_shot",
+  "bullets_fired", "pipes_passed", "aggressiveness", "accuracy"
+)
+
+# Prepare training data
+train_data <- train_base %>%
+  filter(!is.na(death_reason)) %>%
+  select(all_of(death_features), death_reason)
+
+# Prepare test data
+test_data <- test_holdout %>%
+  filter(!is.na(death_reason)) %>%
+  select(all_of(death_features), death_reason)
+
+# Prepare matrices for XGBoost
+x_train <- as.matrix(train_data[, death_features])
+y_train <- as.integer(train_data$death_reason) - 1
+x_test <- as.matrix(test_data[, death_features])
+y_test <- as.integer(test_data$death_reason) - 1
+
+# Train XGBoost
+set.seed(123)
+xgb_death_model <- xgboost(
+  data = x_train, label = y_train,
+  nrounds = 100, objective = "multi:softprob",
+  num_class = 4, eval_metric = "mlogloss",
+  max_depth = 6, eta = 0.1, verbose = 0
+)
+
+# Predictions
+pred_prob <- predict(xgb_death_model, x_test, reshape = TRUE)
+pred_classes <- apply(pred_prob, 1, which.max) - 1
+
+# Overall accuracy
+accuracy <- mean(pred_classes == y_test)
+cat("Overall Accuracy:", round(accuracy, 4), "\n")
+```
+
+```{r}
+class_names <- c("ceiling", "enemy_bullet", "ground", "pipe")
+
+# Confusion matrix
+conf_matrix <- table(
+  Predicted = factor(pred_classes, levels = 0:3, labels = class_names),
+  Actual = factor(y_test, levels = 0:3, labels = class_names)
+)
+
+conf_matrix
+
+# Calculate metrics
+per_class_recall <- diag(conf_matrix) / colSums(conf_matrix)
+per_class_precision <- diag(conf_matrix) / rowSums(conf_matrix)
+per_class_f1 <- 2 * per_class_precision * per_class_recall / 
+                (per_class_precision + per_class_recall)
+
+# Create results table
+results_df <- data.frame(
+  Death_Reason = class_names,
+  Test_Count = as.numeric(table(test_data$death_reason)[class_names]),
+  Recall = round(per_class_recall, 3),
+  Precision = round(per_class_precision, 3),
+  F1_Score = round(per_class_f1, 3)
+)
+
+kable(results_df, caption = "Per-Class Performance",
+      align = "c", digits = 3, row.names = FALSE)
+```
+
+On the holdout test set of 48 sessions, the model achieved 87.5% overall accuracy, correctly predicting 42 out of 48 death reasons.
+
+Pipe deaths showed the strongest performance with 96.7% recall, meaning the model correctly identified 29 out of 30 pipe deaths. Ground deaths achieved 91.7% recall with perfect precision (100%) - whenever the model predicted "ground," it was always correct. Ceiling deaths showed 100% recall but this result is unreliable due to only one test sample. The most challenging class was enemy_bullet, with only 20% recall (1 out of 5 correct).
+
+**5.3.3 Feature Importance**
+
+```{r}
+# Get feature importance
+importance <- xgb.importance(feature_names = death_features, model = xgb_death_model)
+
+kable(importance[, .(Feature, Gain)], 
+      caption = "Feature Importance for Death Reason Prediction",
+      digits = 3, align = "c")
+
+# Plot importance
+library(ggplot2)
+ggplot(importance, aes(x = reorder(Feature, Gain), y = Gain)) +
+  geom_bar(stat = "identity", fill = "steelblue") +
+  coord_flip() +
+  labs(title = "Feature Importance for Death Reason Prediction",
+       x = "Features",
+       y = "Importance (Gain)") +
+  theme_minimal()
+```
+
+Feature importance analysis reveals which behaviors most strongly predict how a player will die. `bullets_fired` emerged as the most important feature by a large margin, contributing 30.8% of the model's predictive power. This was followed by `game_duration` (18.0%) and `pipes_passed` (17.9%). `aggressiveness` contributed 14.3%, while `accuracy` (9.1%) and `score` (7.0%) showed moderate importance.
+
+The least important features were `coins_collected` (2.2%) and `ufos_shot` (0.9%). This is a striking finding: the actual number of UFOs a player shoots is nearly irrelevant for predicting their death reason, while the number of bullets they fire is the single most important predictor.
+
+What matters is whether players try to engage (firing bullets), not whether they succeed (hitting UFOs). This reveals a fundamental behavioral truth: engagement patterns, not outcomes, determine how players fail.
+
 
 ## 6. Business Insights & Recommendations
 
@@ -1019,11 +1237,11 @@ print(round(class_acc, 3))
 
 **Player Base is Segmented into Three Distinct Personas**: Clustering identifies three clear player types:
 
-- Novices (Cluster 2, ~30%): Players who fail almost immediately. They are at the highest risk of churn.
+- Novices (Cluster 2, ~26%): Players who fail almost immediately. They are at the highest risk of churn.
 
-- Average Players (Cluster 3, ~60%): The largest group, representing players who have passed the initial hurdle but have not yet achieved mastery.
+- Average Players (Cluster 3, ~62%): The largest group, representing players who have passed the initial hurdle but have not yet achieved mastery.
 
-- Experts (Cluster 1, ~10%): Highly skilled, long-surviving players who actively engage with all game systems. They are the primary source of high scores and likely the most engaged.
+- Experts (Cluster 1, ~11%): Highly skilled, long-surviving players who actively engage with all game systems. They are the primary source of high scores and likely the most engaged.
 
 **Survival is Best Predicted by Proactive Play**: Predictive models for survival beyond 30 seconds consistently identify `coins_collected` as the top feature, not because of the points, but because it is a proxy for skilled navigation. This is closely followed by `aggressiveness` and `bullet_fired`, confirming that active players survive longer than passive ones.
 
@@ -1031,15 +1249,21 @@ print(round(class_acc, 3))
 
 **6.2.1. For Onboarding and Reducing Early Churn (Targeting Novices):**
 
+**The Problem:** 61% of sessions end within 5 seconds. Novices (26% of players) never experience core gameplay.
+
 **Recommendation:** Redesign the initial tutorial to explicitly address the two primary novice failure modes.
 
 - Prevent "Ground" Deaths: The first tutorial step should force the player to practice and understand the basic flight mechanics (e.g., "Tap to lift the plane and avoid crashing into the ground").
 
 - Prevent "Ceiling" Deaths: The second step should introduce the danger of overtapping (e.g., "Avoid tapping too much, or you'll hit the ceiling!").
 
+- Progressive introduction: Only after a player successfully passes 3 pipes without touching ground or ceiling should combat mechanics (shooting, enemies) be introduced.
+
 **Business Impact:** Smoother onboarding will reduce immediate frustration, lower initial churn rates, and convert more novices into the larger, more valuable "Average Player" segment.
 
 **6.2.2. For Game Balancing and Progressive Difficulty (Targeting All Players):**
+
+**The Problem:** Pipes kill everyone - novices (low scores) AND experts (high scores). The game lacks difficulty scaling.
 
 **Recommendation:** Implement a dynamic difficulty system that scales pipe challenges based on player performance.
 
@@ -1047,9 +1271,13 @@ print(round(class_acc, 3))
 
 - For Experts: Introduce more complex pipe patterns (e.g., moving pipes, tighter gaps) later in the game to maintain challenge and engagement for skilled players who have mastered the basic layout.
 
+- For All Players: Add visual indicators (color changes, particle effects) that warn players when pipe difficulty is about to increase.
+
 **Business Impact:** This creates a more satisfying experience for all skill levels, increasing overall player retention and session length.
 
 **6.2.3. For Enhancing Engagement and Monetization (Targeting Average Players & Experts):**
+
+**The Problem:** The correlation matrix shows that efficiency and risk_taking are strongly correlated (0.97), but players are not explicitly rewarded for aggressive play.
 
 **Recommendation:** Incentivize the "Aggressive Efficiency" playstyle that the data shows is most successful and engaging.
 
@@ -1075,28 +1303,62 @@ print(round(class_acc, 3))
 
 **6.2.5. For Long-Term Content and Feature Development:**
 
-**Recommendation:** Develop end-game content that caters to Experts.
+**The Problem:** The top 11% of players (Experts) have no end-game content. They will eventually get bored and churn.
 
-- Create an "Endless" mode with leaderboards.
+**Recommendation:**  Develop end-game content specifically designed for the Expert persona identified in clustering.
 
-- Design "Boss Battles" against large UFOs, providing a ultimate challenge that fully utilizes the combat skills of top players.
+- Create an "Endless" Mode: No pipes, infinite procedurally generated enemies. Score is based solely on enemies defeated and survival time. Include global leaderboards to foster competition among Experts.
+
+- Design "Boss Battles": Large UFOs with 10x health and complex attack patterns (spread shots, homing missiles, summoned minions). Bosses should appear after 60 seconds of survival, providing an ultimate challenge that fully utilizes the combat skills of top players.
+
+- Implement Daily/Weekly Challenges: "Kill 50 UFOs without collecting any coins" or "Survive 45 seconds without shooting" - challenges that force players to break their usual archetype.
 
 **Business Impact:** This retains the most dedicated and valuable players, creates community buzz around high-score competitions, and extends the game's lifecycle.
 
-> **By implementing these above data-driven recommendations, Flappy Plane Adventure can evolve into a more balanced and engaging game that effectively nurtures players from their first tap to expert-level mastery.**
-
 ## 7. Limitations
 
-While this analysis provides robust and actionable insights into player behaviour, several limitations inherent to the dataset and methodology should be acknowledged:
+While this analysis provides robust and actionable insights into player behavior, several limitations inherent to the dataset and methodology should be acknowledged. Transparency about these limitations ensures appropriate interpretation of results and guides future work.
 
-- Sample Size Constraints: The original dataset consists of only 300 game sessions. Although the implementation of 5-Fold Cross-Validation effectively maximises data utility and prevents overfitting during model evaluation, it cannot artificially create new, distinct playstyles. The models' ability to generalise to a broader, global player base is still inherently bounded by the variance present in these initial 300 samples.
+**Sample Size Constraints (n=300)**
 
-- Deterministic Target Variables: The predictive models, particularly the Score Regression model, achieved exceptionally high accuracy (R^2 > 0.99). While Cross-Validation ensures this is not due to data leakage, this near-perfect performance stems from the deterministic nature of the game's scoring engine. Because the final score is a strict mathematical combination of `coins_collected` and `ufos_shot`, the Random Forest algorithm essentially reverse-engineered the game's mathematical formula rather than inferring deep, hidden behavioural complexities.
+The original dataset consists of only 300 game sessions. Although 5-fold cross-validation effectively maximizes data utility and prevents overfitting during model evaluation, it cannot artificially create new, distinct playstyles. The models' ability to generalize to a broader, global player base is bounded by the variance present in these 300 samples. For rare events like ufo_collision deaths (n=3), reliable modeling is impossible. A minimum of 1,000-2,000 sessions would be needed for robust production deployment.
 
-- Class Imbalance in Multiclass Classification: The death reason prediction model is significantly constrained by class imbalance. A vast majority of game sessions end in "pipe" or "ground" collisions, leaving highly advanced failure states (like "enemy_bullet" or "ufo_collision") underrepresented. This imbalance reduces the model's reliability in accurately classifying those rarer, high-skill death events.
+**Deterministic Target Variables (Score Regression)**
 
-- Correlated Behavioral Features: Several engineered features, such as `efficiency`, `risk_taking`, and `ufo_rate`, are highly correlated. While this collinearity does not degrade the predictive power of algorithms like Random Forest or XGBoost, it does entangle feature importance scores, making it slightly more challenging to isolate the independent impact of a single behavioral metric.
+The score regression model achieved near-perfect performance (R² = 0.9962, RMSE = 0.84). While cross-validation confirms this is not due to data leakage, this near-perfect performance stems from the deterministic nature of the game's scoring engine. Because the final score is a strict mathematical combination of coins_collected and ufos_shot (score = coins + 3×UFOs), the Random Forest algorithm essentially reverse-engineered the game's formula rather than inferring deep, hidden behavioral complexities. This model validates the pipeline but offers no behavioral insight. Future work should focus on non-deterministic targets like survival time or death reason.
 
-- Lack of Longitudinal Data: The current analysis is strictly session-based. Without unique player IDs linking multiple sessions together, it is impossible to track longitudinal trends, such as individual player learning curves, adaptation to difficulty over time, or long-term retention rates.
+**Class Imbalance in Survival Prediction**
 
-Future work should aim to collect larger-scale, longitudinal data with unique player identifiers. Tracking players across multiple sessions would allow for advanced cohort analysis, deeper insights into the learning process, and the development of predictive models that forecast long-term player churn and lifetime value (LTV).
+The survival prediction task suffers from extreme class imbalance: only 12 survivors (4.8%) out of 249 training sessions. This imbalance fundamentally limits the model's ability to learn patterns associated with survival. While XGBoost achieved perfect precision (100%) for survivors, recall was only 50% - the model missed half of the actual survivors. This is not a model deficiency but a statistical reality: with only 12 positive examples, perfect recall is impossible. Collecting at least 100 survivor sessions (10x current) would significantly improve performance.
+
+**Class Imbalance in Multiclass Classification**
+
+The death reason prediction model is significantly constrained by class imbalance. The dataset contains 182 pipe deaths (61%), 75 ground deaths (25%), 32 enemy_bullet deaths (11%), and only 8 ceiling deaths (3%). This imbalance, combined with the exclusion of ufo_collision (n=3), means the model's 87.5% accuracy is heavily weighted toward the majority class (pipe). While pipe and ground predictions are reliable (96.7% and 91.7% recall respectively), enemy_bullet prediction is poor (20% recall). To reliably classify all death reasons, a minimum of 200 samples per class is recommended.
+
+**Correlated Behavioral Features**
+
+Several engineered features show high correlation: efficiency, risk_taking, and ufo_rate have correlations of 0.89-0.97. While this multicollinearity does not degrade the predictive power of tree-based algorithms like Random Forest or XGBoost, it does entangle feature importance scores. When features are highly correlated, importance metrics (Gain, %IncMSE) become unstable and can arbitrarily split importance between correlated features. This means the exact ranking of features should be interpreted cautiously, even though the general pattern (engagement matters more than outcomes) is robust.
+
+**Lack of Longitudinal Data**
+
+The current analysis is strictly session-based, treating each of the 300 sessions as independent. Without unique player IDs linking multiple sessions together, it is impossible to track:
+
+- Individual player learning curves (how skill improves over time)
+
+- Adaptation to difficulty (whether players get better with practice)
+
+- Long-term retention rates (whether players return after their first session)
+
+- Player lifetime value (LTV) prediction
+
+This is perhaps the most significant limitation, as player retention and LTV are the ultimate business metrics for free-to-play games.
+
+### Recommendations for Future Work
+
+Future work should prioritize three improvements:
+
+- Larger-scale data collection (n > 2,000) with balanced representation across skill levels. Over-sample expert players to improve survival and enemy_bullet prediction.
+
+- Longitudinal tracking with unique player IDs to enable cohort analysis, learning curve modeling, and churn prediction. This would require implementing session persistence (e.g., player accounts or device IDs).
+
+- A/B testing of recommendations to establish causal relationships. The current analysis identifies correlations, but only randomized experiments can prove that tutorial changes or dynamic difficulty actually improve retention.
