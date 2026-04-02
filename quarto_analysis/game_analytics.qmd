@@ -79,19 +79,21 @@ set.seed(123)
 
 ## Introduction
 
-The modern gaming landscape is fiercely competitive, where player retention and engagement are the ultimate currencies. Success is no longer solely determined by creative design and immersive gameplay but increasingly by the ability to understand and adapt to player behavior. This project, "Game Analytics: From Exploratory Data Analysis to Predictive Modeling," demonstrates this data-driven paradigm by conducting a comprehensive analysis of Flappy Plane Adventure, a dynamic side-scrolling shooter.
+The modern gaming landscape is fiercely competitive, where player retention and engagement are the ultimate currencies. Success is no longer determined solely by creative design and immersive gameplay but increasingly by the ability to understand and adapt to player behavior. This project, "Game Analytics: From Exploratory Data Analysis to Predictive Modeling," demonstrates this data-driven paradigm by conducting a comprehensive analysis of Flappy Plane Adventure, a dynamic side-scrolling shooter.
 
-Leveraging a focused dataset of 300 game sessions, this study moves beyond traditional descriptive statistics to uncover the deep-seated patterns that govern player success and failure. My journey begins with a thorough Exploratory Data Analysis (EDA), where I visualize performance distributions, identify the most common obstacles, and engineer advanced behavioral features such as aggressiveness, efficiency, and risk-taking to quantify playstyles.
+Leveraging a focused dataset of 300 game sessions, this study moves beyond traditional descriptive statistics to uncover the deep-seated patterns that govern player success and failure. The analysis begins with a thorough Exploratory Data Analysis (EDA), visualizing performance distributions, identifying the most common obstacles (pipes, ground, ceiling, and enemy bullets), and engineering advanced behavioral features such as aggressiveness, efficiency, and risk-taking to quantify distinct playstyles.
 
-To tackle the challenge of a limited dataset without introducing bias or overfitting, this study employs K-Fold Cross-Validation for robust machine learning evaluation. This foundation allows me to segment the player base into distinct behavioral profiles using unsupervised learning (K-Means Clustering), revealing clear archetypes from hesitant Beginners to seasoned Experts.
+To ensure robust evaluation despite the limited dataset, stratified random splitting and 5-fold cross-validation are employed to prevent overfitting while preserving class distributions, particularly for rare death reasons. This methodological foundation enables two complementary analytical approaches:
 
-The core of this investigation lies in supervised predictive modeling. I develop and compare multiple algorithms to:
+1. Unsupervised Learning (Segmentation): Principal Component Analysis (PCA) and K-Means clustering are applied to the full dataset prior to any split, revealing three distinct player personas: Novices (26%), Average Players (62%), and Experts (11%).
 
-- Predict final scores based on gameplay behavior.
+2. Supervised Predictive Modeling: Multiple algorithms (Random Forest and XGBoost) are developed and compared to address three business-critical tasks:
 
-- Forecast player survival beyond a critical 30-second threshold.
+- Score Regression – Predicting final scores based on gameplay behavior
 
-- Anticipate the cause of a player's death through classification modeling.
+- Survival Prediction – Forecasting player survival beyond the 30-second expert threshold (97.9% accuracy)
+
+- Death Reason Prediction – Anticipating the specific cause of player death through multiclass classification (87.5% accuracy)
 
 Ultimately, this report transcends a mere technical exercise. Each model and visualization is meticulously interpreted to generate actionable, evidence-based recommendations for game balancing, targeted player engagement, and strategic monetization.
 
