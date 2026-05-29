@@ -15,7 +15,7 @@ load_dotenv()
 app = Flask(__name__)
 # Restrict CORS cho production: Chỉ cho phép origins từ Render URL hoặc local
 CORS(app, origins=[
-    "https://flappy-analytics.onrender.com",
+    "https://world-of-games-and-data-2.onrender.com",
     "http://localhost:3000",
     "http://localhost:5173",
     "http://127.0.0.1:5000",
